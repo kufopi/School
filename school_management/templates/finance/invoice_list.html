@@ -1,0 +1,141 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Invoice List{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Invoice Management</h2>
+    
+    <!-- Filter Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Filter Invoices</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="form-inline">
+                <div class="form-group mr-3">
+                    <label for="student_id" class="mr-2">Student ID:</label>
+                    <input type="text" class="form-control" id="student_id" name="student_id" 
+                           value="{{ request.GET.student_id }}" placeholder="Enter student ID">
+                </div>
+                <div class="form-group mr-3">
+                    <label for="status" class="mr-2">Status:</label>
+                    <select class="form-control" id="status" name="status">
+                        <option value="">All</option>
+                        <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>Paid</option>
+                        <option value="unpaid" {% if request.GET.status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="{% url 'invoice_list' %}" class="btn btn-secondary ml-2">Reset</a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Invoice List -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5>All Invoices</h5>
+            <div class="btn-group">
+                <button type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-plus"></i> Generate Term Invoices
+                </button>
+                <div class="dropdown-menu">
+                    {% for term in current_terms %}
+                        <a class="dropdown-item" href="{% url 'generate_term_invoices' term_id=term.id %}">
+                            Generate for {{ term.name }}
+                        </a>
+                    {% empty %}
+                        <span class="dropdown-item text-muted">No active terms available</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Student</th>
+                            <th>Class</th>
+                            <th>Term</th>
+                            <th>Amount</th>
+                            <th>Issued</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                        <tr>
+                            <td>{{ invoice.invoice_number }}</td>
+                            <td>{{ invoice.student.full_name }}</td>
+                            <td>{{ invoice.student.current_class }}</td>
+                            <td>{{ invoice.fee_structure.term }}</td>
+                            <td>{{ invoice.total_amount|floatformat:2 }}</td>
+                            <td>{{ invoice.issue_date|date:"d M Y" }}</td>
+                            <td class="{% if invoice.is_overdue %}text-danger{% endif %}">
+                                {{ invoice.due_date|date:"d M Y" }}
+                                {% if invoice.is_overdue %}(Overdue){% endif %}
+                            </td>
+                            <td>
+                                {% if invoice.is_paid %}
+                                <span class="badge badge-success">Paid</span>
+                                {% else %}
+                                <span class="badge badge-warning">Unpaid</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'invoice_detail' pk=invoice.pk %}" class="btn btn-sm btn-info" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'payment_create' invoice_id=invoice.pk %}" class="btn btn-sm btn-success" title="Record Payment">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center">No invoices found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.student_id %}&student_id={{ request.GET.student_id }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">&laquo; First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.student_id %}&student_id={{ request.GET.student_id }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.student_id %}&student_id={{ request.GET.student_id }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.student_id %}&student_id={{ request.GET.student_id }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Last &raquo;</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

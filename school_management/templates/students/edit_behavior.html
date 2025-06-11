@@ -1,0 +1,65 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            {% if form.instance.pk %}Edit{% else %}Add{% endif %} Behavior Assessment - {{ student.user.get_full_name }}
+        </h1>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row">
+                    {% for field in form %}
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ field.label }}</label>
+                        <div class="d-flex align-items-center">
+                            {{ field }}
+                            <div class="ms-3">
+                                <output class="form-range-value">{{ field.value|default:3 }}</output>/5
+                            </div>
+                        </div>
+                        <div class="form-range">
+                            <input type="range" class="form-range-input" 
+                                   min="1" max="5" step="1" 
+                                   value="{{ field.value|default:3 }}"
+                                   data-target="#{{ field.auto_id }}">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'student_dashboard' student.id %}" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        Save Assessment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update range inputs and outputs
+    document.querySelectorAll('.form-range-input').forEach(input => {
+        const target = document.querySelector(input.dataset.target);
+        const output = input.closest('.mb-3').querySelector('.form-range-value');
+        
+        input.addEventListener('input', () => {
+            target.value = input.value;
+            output.textContent = input.value;
+        });
+    });
+});
+</script>
+{% endblock %}

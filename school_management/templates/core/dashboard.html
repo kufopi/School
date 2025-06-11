@@ -1,0 +1,195 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- User Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">
+                        Welcome, {{ user.get_full_name }}
+                        <span class="badge bg-secondary float-end">{{ user.get_user_type_display }}</span>
+                    </h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Section -->
+    <div class="row mb-4">
+        {% if user.user_type == 'admin' or user.user_type == 'staff' %}
+        <!-- Admin/Staff Stats -->
+        <div class="col-md-3 mb-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Students</h6>
+                    <h2>{{ student_count }}</h2>
+                    <a href="{% url 'student_list' %}" class="text-white">View All</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Active Teachers</h6>
+                    <h2>{{ teacher_count }}</h2>
+                    <a href="{% url 'teacher_list' %}" class="text-white">View All</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Pending Invoices</h6>
+                    <h2>{{ pending_invoices }}</h2>
+                    <a href="{% url 'invoice_list' %}?status=unpaid" class="text-dark">View All</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Common Stats -->
+        <div class="col-md-3 mb-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Current Term</h6>
+                    <h5>{{ current_term.name }}</h5>
+                    <small>{{ current_term.start_date|date:"M d" }} - {{ current_term.end_date|date:"M d" }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User-Specific Content -->
+    <div class="row">
+        {% if user.user_type == 'admin' or user.user_type == 'staff' %}
+        <!-- Admin/Staff Content -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Upcoming Events</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% for event in upcoming_events %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ event.title }}</strong><br>
+                                <small>{{ event.start_date|date:"M d, Y" }}</small>
+                            </div>
+                            <span class="badge bg-primary">{{ event.location }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item">No upcoming events</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Payments</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Student</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in recent_payments %}
+                            <tr>
+                                <td>{{ payment.payment_date|date:"M d" }}</td>
+                                <td>{{ payment.invoice.student.user.get_short_name }}</td>
+                                <td>{{ payment.amount|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3">No recent payments</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user.user_type == 'teacher' %}
+        <!-- Teacher Content -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>My Classes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for class in teacher_classes %}
+                        <a href="#" class="list-group-item list-group-item-action">
+                            {{ class.class_info.name }} - {{ class.academic_session.name }}
+                        </a>
+                        {% empty %}
+                        <div class="list-group-item">No classes assigned</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user.user_type == 'student' %}
+        <!-- Student Content -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>My Classes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for class in student_classes %}
+                        <a href="#" class="list-group-item list-group-item-action">
+                            {{ class.name }}
+                        </a>
+                        {% empty %}
+                        <div class="list-group-item">No classes assigned</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user.user_type == 'parent' %}
+        <!-- Parent Content -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>My Children</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for child in children %}
+                        <a href="#" class="list-group-item list-group-item-action">
+                            {{ child.get_full_name }} - {{ child.student.current_class }}
+                        </a>
+                        {% empty %}
+                        <div class="list-group-item">No children registered</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

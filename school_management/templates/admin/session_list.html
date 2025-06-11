@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>School Sessions</h2>
+    <a href="{% url 'create_session' %}" class="btn btn-success mb-3">Add New Session</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Session</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Current</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for session in sessions %}
+            <tr>
+                <td>{{ session.name }}</td>
+                <td>{{ session.start_date }}</td>
+                <td>{{ session.end_date }}</td>
+                <td>{% if session.is_current %}<span class="badge bg-success">Yes</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No sessions found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

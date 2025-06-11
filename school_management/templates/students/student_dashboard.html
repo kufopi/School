@@ -1,0 +1,330 @@
+
+{% extends 'core/base.html' %}
+{% load student_tags %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .skill-meter {
+        height: 20px;
+        background: #f0f0f0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .skill-progress {
+        height: 100%;
+        background: linear-gradient(90deg, #4e73df, #1cc88a);
+    }
+    .attendance-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .present { background-color: #1cc88a; }
+    .absent { background-color: #e74a3b; }
+    .edit-btn-group {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Student Info -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            Student Dashboard - {{ student.user.get_full_name }}
+            <small class="text-muted">{{ student.current_class }}</small>
+        </h1>
+        {% if can_edit %}
+        <div class="btn-group">
+            <a href="{% url 'edit_student_health' student.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-clipboard-pulse"></i> Health
+            </a>
+            <a href="{% url 'add_behavior_assessment' student.id %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-clipboard-check"></i> Behavior
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Behavior & Skills Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 position-relative">
+            <h6 class="m-0 font-weight-bold text-primary">Behavior & Skills Assessment</h6>
+            {% if can_edit and current_stats.behavior %}
+            <div class="edit-btn-group">
+                <a href="{% url 'edit_behavior_assessment' current_stats.behavior.id %}" 
+                   class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if current_stats.behavior %}
+            <div class="row">
+                {% for skill in skill_labels %}
+                <div class="col-md-3 mb-4">
+                    <h6 class="small font-weight-bold">{{ skill }} 
+                        <span class="float-right">{{ current_stats.behavior|get_attr:skill.lower }}/5</span>
+                    </h6>
+                    <div class="skill-meter">
+                        <div class="skill-progress" 
+                             style="width: {{ current_stats.behavior|get_attr:skill.lower|multiply:20 }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="mt-4">
+                <canvas id="behaviorChart" height="100"></canvas>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted">No behavior assessment for current term</p>
+                {% if can_edit %}
+                <a href="{% url 'add_behavior_assessment' student.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> Add Assessment
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Attendance Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center position-relative">
+            <div>
+                <h6 class="m-0 font-weight-bold text-primary">Attendance Record</h6>
+                {% if current_stats.attendance %}
+                <span class="attendance-dot present"></span> 
+                <small>Present: {{ current_stats.attendance.days_present }}</small>
+                <span class="attendance-dot absent ml-3"></span> 
+                <small>Absent: {{ current_stats.attendance.days_absent }}</small>
+                {% endif %}
+            </div>
+            {% if can_edit %}
+            <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#attendanceModal">
+                <i class="fas fa-edit"></i> Update
+            </button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="chart-area">
+                <canvas id="attendanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Combined Health & Behavior Timeline -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Development Timeline</h6>
+        </div>
+        <div class="card-body">
+            <div class="chart-area">
+                <canvas id="timelineChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subject Performance Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Academic Performance</h6>
+            {% if can_edit %}
+            <a href="{% url 'add_student_result' student.id %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-plus"></i> Add Result
+            </a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Subject</th>
+                            <th>Average</th>
+                            <th>Highest</th>
+                            <th>Lowest</th>
+                            <th>Progress</th>
+                            {% if can_edit %}<th>Actions</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in current_stats.subjects %}
+                        <tr>
+                            <td>{{ subject.subject__name }}</td>
+                            <td>{{ subject.avg_score|floatformat:1 }}%</td>
+                            <td>{{ subject.highest_score|floatformat:1 }}%</td>
+                            <td>{{ subject.lowest_score|default:"-" }}</td>
+                            <td>
+                                <div class="progress progress-sm">
+                                    <div class="progress-bar bg-success" style="width: {{ subject.avg_score }}%"></div>
+                                </div>
+                            </td>
+                            {% if can_edit %}
+                            <td>
+                                <a href="{% url 'edit_student_result' student.id subject.subject__name %}" 
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if can_edit %}6{% else %}5{% endif %}" class="text-center">No results available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Update Modal -->
+{% if can_edit %}
+<div class="modal fade" id="attendanceModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Attendance</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form method="post" action="{% url 'update_attendance' student.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <!-- Attendance form fields would go here -->
+                    <div class="form-group">
+                        <label>Days Present</label>
+                        <input type="number" name="days_present" class="form-control" 
+                               value="{{ current_stats.attendance.days_present|default:0 }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Days Absent</label>
+                        <input type="number" name="days_absent" class="form-control" 
+                               value="{{ current_stats.attendance.days_absent|default:0 }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+    // Behavior Radar Chart
+    const behaviorCtx = document.getElementById('behaviorChart').getContext('2d');
+    new Chart(behaviorCtx, {
+        type: 'radar',
+        data: {
+            labels: {{ skill_labels|safe }},
+            datasets: [{
+                label: 'Current Term',
+                data: [
+                    {{ current_stats.behavior.participation }},
+                    {{ current_stats.behavior.responsibility }},
+                    {{ current_stats.behavior.creativity }},
+                    {{ current_stats.behavior.cooperation }}
+                ],
+                backgroundColor: 'rgba(78, 115, 223, 0.2)',
+                borderColor: 'rgba(78, 115, 223, 1)',
+                pointBackgroundColor: 'rgba(78, 115, 223, 1)',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    angleLines: { display: true },
+                    suggestedMin: 1,
+                    suggestedMax: 5,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+
+    // Attendance Chart
+    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+    new Chart(attendanceCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ attendance_records|map_attribute:'term__name'|safe }},
+            datasets: [{
+                label: 'Present',
+                data: {{ attendance_records|map_attribute:'days_present'|safe }},
+                backgroundColor: '#1cc88a'
+            }, {
+                label: 'Absent',
+                data: {{ attendance_records|map_attribute:'days_absent'|safe }},
+                backgroundColor: '#e74a3b'
+            }]
+        },
+        options: {
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true }
+            }
+        }
+    });
+
+    // Combined Timeline Chart
+    const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+    new Chart(timelineCtx, {
+        type: 'line',
+        data: {
+            labels: {{ behavior_assessments|map_attribute:'term__name'|safe }},
+            datasets: [
+                {
+                    label: 'Behavior Average',
+                    data: {{ behavior_assessments|map_behavior_average|safe }},
+                    borderColor: '#4e73df',
+                    yAxisID: 'y',
+                    tension: 0.3
+                },
+                {
+                    label: 'BMI',
+                    data: {{ health_records|map_bmi_values|safe }},
+                    borderColor: '#f6c23e',
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    min: 1,
+                    max: 5
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

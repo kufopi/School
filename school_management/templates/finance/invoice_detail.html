@@ -1,0 +1,83 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Invoice #{{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5>Invoice #{{ invoice.invoice_number }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6>Student Information</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <th>Name:</th>
+                        <td>{{ invoice.student.user.get_full_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Class:</th>
+                        <td>{{ invoice.student.current_class }}</td>
+                    </tr>
+                    <tr>
+                        <th>Invoice Date:</th>
+                        <td>{{ invoice.issue_date|date:"d M Y" }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Payment Status</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <th>Due Date:</th>
+                        <td>{{ invoice.due_date|date:"d M Y" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            {% if invoice.is_paid %}
+                            <span class="badge bg-success">Paid</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Balance:</th>
+                        <td>{{ invoice.balance|floatformat:2 }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <h6>Fee Breakdown</h6>
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Item</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in invoice.invoicelineitem_set.all %}
+                <tr>
+                    <td>{{ item.fee_item.name }}</td>
+                    <td>{{ item.amount }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="table-secondary">
+                    <th>Total</th>
+                    <th>{{ invoice.total_amount }}</th>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="mt-4">
+            <a href="{% url 'payment_create' invoice.id %}" class="btn btn-primary">
+                <i class="bi bi-cash"></i> Record Payment
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
