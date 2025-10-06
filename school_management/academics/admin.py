@@ -5,8 +5,9 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import (
     Subject, Class, ClassSubject, ExamType, TermReport, 
-    Result, ReportComment, PredefinedComment
+    Result, ReportComment, PredefinedComment,SubjectGrade
 )
+from django.db import models
 
 
 @admin.register(Subject)
@@ -16,18 +17,11 @@ class SubjectAdmin(admin.ModelAdmin):
     list_filter = ['name']
     ordering = ['name']
     
-    fieldsets = (
-        ('Subject Information', {
-            'fields': ('name', 'code', 'description')
-        }),
-    )
-    
     def get_class_count(self, obj):
         return obj.classsubject_set.count()
     get_class_count.short_description = 'Classes Teaching'
     
     def get_student_count(self, obj):
-        # Count unique students taking this subject
         return Result.objects.filter(subject=obj).values('student').distinct().count()
     get_student_count.short_description = 'Total Students'
 
@@ -126,14 +120,15 @@ class ClassSubjectAdmin(admin.ModelAdmin):
 
 @admin.register(ExamType)
 class ExamTypeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'weight', 'get_weight_display', 'get_usage_count']
-    list_editable = ['weight']
+    list_display = ['name', 'weight', 'max_score', 'is_final', 'get_weight_display', 'get_usage_count']
+    list_editable = ['weight', 'max_score', 'is_final']  # Added editable fields
+    list_filter = ['is_final']  # Added filter
     search_fields = ['name']
     ordering = ['weight']
     
     fieldsets = (
         ('Exam Type Information', {
-            'fields': ('name', 'weight')
+            'fields': ('name', 'weight', 'max_score', 'is_final')  # Added missing fields
         }),
     )
     
@@ -149,10 +144,15 @@ class ExamTypeAdmin(admin.ModelAdmin):
 class ResultInline(admin.TabularInline):
     model = Result
     extra = 1
-    fields = ['subject', 'exam_type', 'score', 'recorded_by']
-    autocomplete_fields = ['subject', 'exam_type']
+    fields = ['exam_type', 'score', 'recorded_by']
     readonly_fields = ['date_recorded']
 
+class SubjectGradeInline(admin.TabularInline):
+    model = SubjectGrade
+    extra = 0
+    readonly_fields = ['final_score', 'grade']
+    can_delete = False
+    show_change_link = True
 
 class ReportCommentInline(admin.StackedInline):
     model = ReportComment
@@ -161,47 +161,50 @@ class ReportCommentInline(admin.StackedInline):
     readonly_fields = ['date_added']
 
 
+# Replace the TermReportAdmin methods in your admin.py with these corrected versions:
+
 @admin.register(TermReport)
 class TermReportAdmin(admin.ModelAdmin):
-    list_display = ['get_student_display', 'get_student_class', 'term', 'date_created', 'created_by', 'get_results_count', 'get_average_score', 'get_status']
-    list_filter = ['term', 'date_created', 'student__current_class__level', 'student__current_class__arm']  # Updated filters
+    list_display = ['student', 'term', 'created_by', 'get_results_count', 'get_comments_count', 'get_status', 'is_published', 'date_created']  # Added created_by
+    list_filter = ['term', 'student__current_class__level', 'student__current_class__arm', 'is_published']
     search_fields = ['student__user__first_name', 'student__user__last_name', 'student__student_id']
-    readonly_fields = ['date_created']
-    inlines = [ResultInline, ReportCommentInline]
+    readonly_fields = ['date_created', 'created_by']  # Added created_by as readonly
+    autocomplete_fields = ['student', 'term', 'created_by']  # Added autocomplete
     
-    fieldsets = (
-        ('Report Information', {
-            'fields': ('student', 'term', 'created_by', 'date_created')
-        }),
-    )
+    # Add created_by to the form handling
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:  # Only set created_by on creation
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
     
-    def get_student_display(self, obj):
-        return str(obj.student)
-    get_student_display.short_description = 'Student'
-    get_student_display.admin_order_field = 'student__user__first_name'
-    
-    def get_student_class(self, obj):
-        """Show student's class with arm"""
-        if hasattr(obj.student, 'current_class') and obj.student.current_class:
-            return obj.student.current_class.full_name
-        return "No Class"
-    get_student_class.short_description = 'Class'
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Use the correct reverse relationship name - 'result' (singular)
+        qs = qs.annotate(results_count=Count('result', distinct=True))
+        return qs
     
     def get_results_count(self, obj):
-        return obj.result_set.count()
+        return obj.results_count
     get_results_count.short_description = 'Results'
+    get_results_count.admin_order_field = 'results_count'
     
-    def get_average_score(self, obj):
-        avg = obj.result_set.aggregate(avg_score=Avg('score'))['avg_score']
-        if avg:
-            return f"{avg:.1f}"
-        return "N/A"
-    get_average_score.short_description = 'Average Score'
+    def get_comments_count(self, obj):
+        return obj.reportcomment_set.count()
+    get_comments_count.short_description = 'Comments'
+    
+    def publish_reports(self, request, queryset):
+        updated = queryset.update(is_published=True)
+        self.message_user(request, f'Successfully published {updated} reports.')
+    publish_reports.short_description = 'Publish selected reports'
+    
+    def unpublish_reports(self, request, queryset):
+        updated = queryset.update(is_published=False)
+        self.message_user(request, f'Successfully unpublished {updated} reports.')
+    unpublish_reports.short_description = 'Unpublish selected reports'
     
     def get_status(self, obj):
-        results_count = obj.result_set.count()
+        results_count = obj.results_count
         comments_count = obj.reportcomment_set.count()
-        
         if results_count == 0:
             color = 'red'
             status = 'No Results'
@@ -211,29 +214,25 @@ class TermReportAdmin(admin.ModelAdmin):
         else:
             color = 'green'
             status = 'Complete'
-        
         return format_html(
             '<span style="color: {}; font-weight: bold;">{}</span>',
             color, status
         )
     get_status.short_description = 'Status'
 
-
 @admin.register(Result)
 class ResultAdmin(admin.ModelAdmin):
-    list_display = ['get_student_display', 'get_student_class', 'subject', 'exam_type', 'score', 'get_grade', 'term', 'recorded_by', 'date_recorded']
-    list_filter = ['exam_type', 'term', 'subject', 'date_recorded', 'student__current_class__level', 'student__current_class__arm']  # Updated filters
+    list_display = ['get_student_display', 'get_student_class', 'subject', 'exam_type', 'get_score_display', 'get_grade', 'term', 'recorded_by', 'date_recorded']
+    list_filter = ['exam_type', 'term', 'subject', 'date_recorded']
     search_fields = ['student__user__first_name', 'student__user__last_name', 'student__student_id', 'subject__name']
-    readonly_fields = ['date_recorded']
-    autocomplete_fields = ['student', 'subject', 'exam_type', 'report']
-    date_hierarchy = 'date_recorded'
+    autocomplete_fields = ['student', 'subject', 'term', 'exam_type', 'term_report', 'recorded_by']  # Added term_report
     
     fieldsets = (
         ('Result Information', {
-            'fields': ('student', 'subject', 'exam_type', 'term', 'score')
+            'fields': ('student', 'term', 'term_report', 'subject', 'exam_type', 'score')  # Added term_report
         }),
         ('Recording Information', {
-            'fields': ('recorded_by', 'date_recorded', 'report'),
+            'fields': ('recorded_by',),
             'classes': ('collapse',)
         }),
     )
@@ -241,47 +240,34 @@ class ResultAdmin(admin.ModelAdmin):
     def get_student_display(self, obj):
         return str(obj.student)
     get_student_display.short_description = 'Student'
-    get_student_display.admin_order_field = 'student__user__first_name'
     
     def get_student_class(self, obj):
-        """Show student's class with arm"""
-        if hasattr(obj.student, 'current_class') and obj.student.current_class:
+        if hasattr(obj.student, 'current_class'):
             return obj.student.current_class.full_name
         return "No Class"
     get_student_class.short_description = 'Class'
     
+    def get_score_display(self, obj):
+        return f"{obj.score:.1f}/{obj.exam_type.max_score}"
+    get_score_display.short_description = 'Score'
+    
     def get_grade(self, obj):
-        score = float(obj.score)
+        results = Result.objects.filter(student=obj.student, term=obj.term, subject=obj.subject)
         
-        if score >= 90:
-            color = 'green'
-            grade = 'A+'
-        elif score >= 80:
-            color = 'green'
-            grade = 'A'
-        elif score >= 70:
-            color = 'blue'
-            grade = 'B'
-        elif score >= 60:
-            color = 'orange'
-            grade = 'C'
-        elif score >= 50:
-            color = 'red'
-            grade = 'D'
-        else:
-            color = 'darkred'
-            grade = 'F'
-        
-        return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
-            color, grade
+        total_weighted_score = sum(
+            (float(r.score) / float(r.exam_type.max_score)) * float(r.exam_type.weight)
+            for r in results
         )
+        
+        total_weight = sum(r.exam_type.weight for r in results)
+        
+        if total_weight > 0:
+            return TermReport.calculate_subject_grade(obj, total_weighted_score)
+        return 'F'
     get_grade.short_description = 'Grade'
     
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related(
-            'student__user', 'student__current_class', 'subject', 'exam_type', 'term', 'recorded_by__user'
-        )
+        return super().get_queryset(request).select_related('student', 'term', 'subject', 'exam_type', 'recorded_by')
 
 
 @admin.register(ReportComment)
@@ -289,7 +275,8 @@ class ReportCommentAdmin(admin.ModelAdmin):
     list_display = ['get_student_display', 'get_student_class', 'comment_type', 'get_comment_preview', 'date_added', 'added_by']
     list_filter = ['comment_type', 'date_added', 'report__student__current_class__level', 'report__student__current_class__arm']
     search_fields = ['report__student__user__first_name', 'report__student__user__last_name', 'comment']
-    readonly_fields = ['date_added']
+    readonly_fields = ['date_added', 'added_by']  # Added added_by as readonly
+    autocomplete_fields = ['report', 'added_by']  # Added autocomplete
     
     fieldsets = (
         ('Comment Information', {
@@ -300,6 +287,11 @@ class ReportCommentAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:  # Only set added_by on creation
+            obj.added_by = request.user
+        super().save_model(request, obj, form, change)
     
     def get_student_display(self, obj):
         return str(obj.report.student)
@@ -341,11 +333,23 @@ class PredefinedCommentAdmin(admin.ModelAdmin):
 
 
 # Enhanced Class Admin with Subject Inline
+# Replace the EnhancedClassAdmin with this corrected version
 class EnhancedClassAdmin(ClassAdmin):
     inlines = [ClassSubjectInline]
     
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('classsubject_set')
+        return super().get_queryset(request).prefetch_related('classsubject_set__subject', 'classsubject_set__teacher')
+
+
+@admin.register(SubjectGrade)
+class SubjectGradeAdmin(admin.ModelAdmin):
+    list_display = ['get_student', 'subject', 'final_score', 'grade', 'position']
+    list_filter = ['report__term', 'subject']
+    readonly_fields = ['final_score', 'grade']
+    
+    def get_student(self, obj):
+        return obj.report.student
+    get_student.short_description = 'Student'
 
 
 # Custom Admin Site Customizations

@@ -1,0 +1,253 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Bulk Attendance Entry{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="mb-6">
+        <a href="{% url 'class_teacher_dashboard' %}" class="back-link">
+            <i class="fas fa-arrow-left"></i>
+            Back to Class Dashboard
+        </a>
+    </div>
+
+    <div class="header">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Bulk Attendance Entry</h1>
+        <div class="student-meta">
+            <div class="meta-item">
+                <i class="fas fa-users"></i>
+                <span>Class: <strong>{{ class_teacher_assignment.class_assigned }}</strong></span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Term: <strong>{{ current_term }}</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <div>
+            <p class="font-semibold">📝 Instructions:</p>
+            <ul class="text-sm mt-2 list-disc list-inside space-y-1">
+                <li>Enter attendance data for all students in your class</li>
+                <li>You can leave fields blank if you don't want to update them</li>
+                <li>Only filled fields will be saved/updated</li>
+                <li>Make sure Days Present + Days Absent = Total School Days for accurate rates</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Bulk Attendance Form -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                Enter Attendance for All Students
+            </h2>
+        </div>
+        
+        {% if students %}
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="text-left">S/N</th>
+                            <th class="text-left">Student ID</th>
+                            <th class="text-left">Student Name</th>
+                            <th class="text-center">Days Present</th>
+                            <th class="text-center">Days Absent</th>
+                            <th class="text-center">Total Days</th>
+                            <th class="text-center">Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td class="text-sm">{{ forloop.counter }}</td>
+                            <td class="text-sm font-medium">{{ student.student_id }}</td>
+                            <td class="text-sm font-medium">{{ student.user.get_full_name }}</td>
+                            <td class="text-center">
+                                <input type="number" 
+                                       name="days_present_{{ student.id }}" 
+                                       value=""
+                                       min="0"
+                                       class="form-control text-center"
+                                       style="width: 100px; margin: 0 auto;"
+                                       placeholder="0">
+                            </td>
+                            <td class="text-center">
+                                <input type="number" 
+                                       name="days_absent_{{ student.id }}" 
+                                       value=""
+                                       min="0"
+                                       class="form-control text-center"
+                                       style="width: 100px; margin: 0 auto;"
+                                       placeholder="0">
+                            </td>
+                            <td class="text-center text-sm">
+                                <span class="text-gray-400" id="total_{{ student.id }}">-</span>
+                            </td>
+                            <td class="text-center text-sm">
+                                <span class="text-gray-400" id="rate_{{ student.id }}">-</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 flex justify-end gap-4">
+                <a href="{% url 'class_teacher_dashboard' %}" 
+                   class="btn btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="btn btn-success">
+                    <i class="fas fa-save me-2"></i>
+                    Save All Attendance Records
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="no-data">
+            <i class="fas fa-users-slash"></i>
+            <p class="text-lg">No students found in this class.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Fill Helper -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <div class="card-icon" style="background: linear-gradient(135deg, #8b5cf6, #a855f7);">
+                    <i class="fas fa-magic"></i>
+                </div>
+                Quick Fill Helper
+            </h3>
+        </div>
+        
+        <p class="text-sm text-gray-600 mb-4">Use this to quickly fill common values for all students (you can edit individual entries afterward)</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="form-label">Days Present (All)</label>
+                <input type="number" 
+                       id="bulk_present" 
+                       min="0"
+                       class="form-control"
+                       placeholder="e.g., 60">
+            </div>
+            <div>
+                <label class="form-label">Days Absent (All)</label>
+                <input type="number" 
+                       id="bulk_absent" 
+                       min="0"
+                       class="form-control"
+                       placeholder="e.g., 5">
+            </div>
+            <div class="flex items-end">
+                <button type="button" 
+                        onclick="fillAllAttendance()"
+                        class="btn btn-primary w-full"
+                        style="background: linear-gradient(135deg, #8b5cf6, #a855f7);">
+                    <i class="fas fa-fill me-2"></i>
+                    Apply to All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load existing attendance data
+const attendanceData = {{ attendance_dict|safe }};
+
+// Populate existing data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    for (const [studentId, data] of Object.entries(attendanceData)) {
+        const presentInput = document.querySelector(`input[name="days_present_${studentId}"]`);
+        const absentInput = document.querySelector(`input[name="days_absent_${studentId}"]`);
+        
+        if (presentInput && data.days_present !== undefined) {
+            presentInput.value = data.days_present;
+        }
+        if (absentInput && data.days_absent !== undefined) {
+            absentInput.value = data.days_absent;
+        }
+        
+        updateTotals(studentId);
+    }
+    
+    // Add event listeners for real-time calculation
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('input', function() {
+            const studentId = this.name.match(/\d+/)[0];
+            updateTotals(studentId);
+        });
+    });
+});
+
+function updateTotals(studentId) {
+    const presentInput = document.querySelector(`input[name="days_present_${studentId}"]`);
+    const absentInput = document.querySelector(`input[name="days_absent_${studentId}"]`);
+    const totalSpan = document.getElementById(`total_${studentId}`);
+    const rateSpan = document.getElementById(`rate_${studentId}`);
+    
+    const present = parseInt(presentInput.value) || 0;
+    const absent = parseInt(absentInput.value) || 0;
+    const total = present + absent;
+    
+    if (total > 0) {
+        const rate = ((present / total) * 100).toFixed(1);
+        totalSpan.textContent = total;
+        totalSpan.className = 'font-semibold text-blue-600';
+        rateSpan.textContent = rate + '%';
+        rateSpan.className = 'font-semibold text-green-600';
+    } else {
+        totalSpan.textContent = '-';
+        totalSpan.className = 'text-gray-400';
+        rateSpan.textContent = '-';
+        rateSpan.className = 'text-gray-400';
+    }
+}
+
+function fillAllAttendance() {
+    const bulkPresent = document.getElementById('bulk_present').value;
+    const bulkAbsent = document.getElementById('bulk_absent').value;
+    
+    let shouldOverwrite = true;
+    const hasExistingData = document.querySelector('input[name^="days_present_"][value!=""]');
+    
+    if (hasExistingData && (bulkPresent || bulkAbsent)) {
+        shouldOverwrite = confirm('This will overwrite existing values. Continue?');
+    }
+    
+    if (!shouldOverwrite) return;
+    
+    if (bulkPresent) {
+        document.querySelectorAll('input[name^="days_present_"]').forEach(input => {
+            input.value = bulkPresent;
+            const studentId = input.name.match(/\d+/)[0];
+            updateTotals(studentId);
+        });
+    }
+    
+    if (bulkAbsent) {
+        document.querySelectorAll('input[name^="days_absent_"]').forEach(input => {
+            input.value = bulkAbsent;
+            const studentId = input.name.match(/\d+/)[0];
+            updateTotals(studentId);
+        });
+    }
+}
+</script>
+
+{% endblock %}

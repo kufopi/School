@@ -7,7 +7,7 @@ class TeacherAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'date_employed', 'qualification', 'specialization')
     search_fields = ('staff_id', 'user__first_name', 'user__last_name', 'user__email', 'qualification', 'specialization')
     list_editable = ('is_active',)
-    readonly_fields = ('date_employed',)
+    # readonly_fields = ('date_employed',)
     ordering = ('user__first_name', 'user__last_name')
     
     fieldsets = (

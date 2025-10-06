@@ -10,6 +10,16 @@ from events.models import Event
 from django.utils import timezone
 
 
+from django.contrib.auth.views import LoginView, LogoutView
+from django.urls import reverse_lazy
+from django.contrib import messages
+from .forms import CustomAuthenticationForm
+from django.views.generic import TemplateView
+from students.models import Student
+from staff.models import Teacher
+from finance.models import Invoice, Payment
+from events.models import Event
+from django.utils import timezone
 
 # In views.py
 class CustomLoginView(LoginView):
@@ -33,7 +43,7 @@ class CustomLoginView(LoginView):
             return reverse_lazy('teacher_dashboard')
         elif user.user_type == 'parent':
             return reverse_lazy('parent_dashboard')
-        return reverse_lazy('dashboard')  # Changed from 'admin_dashboard' to 'dashboard'
+        return reverse_lazy('dashboard')
 
 class CustomLogoutView(LogoutView):
     next_page = reverse_lazy('login')
@@ -61,12 +71,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         elif user.user_type == 'teacher':
             context['teacher_classes'] = user.teacher.classes_assigned.all()
         elif user.user_type == 'student':
-            context['student_classes'] = user.student.classes.all()
+            context['student_class'] = user.student.current_class
         elif user.user_type == 'parent':
             context['children'] = user.parent.children.all()
             
         return context
-    
 
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, redirect
@@ -118,14 +127,3 @@ def create_term(request):
 def term_list(request):
     terms = SchoolTerm.objects.all().order_by('-session__start_date', 'name')
     return render(request, 'admin/term_list.html', {'terms': terms})
-
-
-# # In views.py
-# class AdminDashboardView(LoginRequiredMixin, TemplateView):
-#     template_name = 'core/admin_dashboard.html'
-#     login_url = reverse_lazy('login')
-    
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         # Add admin-specific context here
-#         return context

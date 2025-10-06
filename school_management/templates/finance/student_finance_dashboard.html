@@ -1,0 +1,405 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% load finance_tags %}
+
+{% block title %}Finance Dashboard - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="header">
+        <div class="student-info">
+            <div class="avatar">
+                {% if student.photo %}
+                    <img src="{{ student.photo.url }}" alt="{{ student.user.get_full_name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                {% else %}
+                    {% firstof student.user.first_name|first student.user.get_full_name|first %}{% firstof student.user.last_name|first '' %}
+                {% endif %}
+            </div>
+            <div class="student-details">
+                <h1>{{ student.user.get_full_name }}</h1>
+                <div class="student-meta">
+                    <div class="meta-item">
+                        <span class="meta-icon">🆔</span>
+                        <span>{{ student.student_id }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-icon">🏫</span>
+                        <span>{{ student.current_class }}</span>
+                    </div>
+                    {% if current_term %}
+                    <div class="meta-item">
+                        <span class="meta-icon">📅</span>
+                        <span>{{ current_term.session.name }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="term-badge">{{ current_term.name }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-nav">
+            <a href="{% url 'student_dashboard' student.id %}" class="nav-link">
+                <span style="font-size: 16px;">📊</span>
+                Academic Dashboard
+            </a>
+            <a href="{% url 'student_term_report' student.id %}" class="nav-link">
+                <span style="font-size: 16px;">📋</span>
+                Term Report
+            </a>
+        </div>
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+        <!-- Total Outstanding -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <div class="card-icon">💰</div>
+                    Total Outstanding
+                </h3>
+            </div>
+            <div class="stat-value" style="color: #ef4444; font-size: 28px;">
+                ₦{{ total_outstanding|floatformat:2 }}
+            </div>
+            <div class="stat-label">Unpaid invoices</div>
+        </div>
+
+        <!-- Total Paid -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <div class="card-icon">✅</div>
+                    Total Paid
+                </h3>
+            </div>
+            <div class="stat-value" style="color: #059669; font-size: 28px;">
+                ₦{{ total_paid|floatformat:2 }}
+            </div>
+            <div class="stat-label">All payments</div>
+        </div>
+
+        <!-- Upcoming Due -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <div class="card-icon">⏰</div>
+                    Upcoming Due
+                </h3>
+            </div>
+            {% if upcoming_due %}
+            <div class="stat-value" style="color: #f59e0b; font-size: 28px;">
+                ₦{{ upcoming_due.amount|floatformat:2 }}
+            </div>
+            <div class="stat-label">Due {{ upcoming_due.date|date:"M d" }}</div>
+            {% else %}
+            <div class="stat-value" style="color: #6b7280; font-size: 28px;">
+                ₦0.00
+            </div>
+            <div class="stat-label">No upcoming payments</div>
+            {% endif %}
+        </div>
+
+        <!-- Payment Methods -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <div class="card-icon">💳</div>
+                    Payment Methods
+                </h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🏦</span>
+                    <span>Bank Transfer</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">💳</span>
+                    <span>Online Payment</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">📱</span>
+                    <span>Mobile Money</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoices Section -->
+    <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+            <h3 class="card-title">
+                <div class="card-icon">📋</div>
+                Invoices
+            </h3>
+            <div class="filter-controls">
+                <select id="statusFilter" onchange="filterInvoices()" style="padding: 8px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <option value="all">All Invoices</option>
+                    <option value="paid">Paid</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="overdue">Overdue</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="invoices-list">
+            {% if invoices %}
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #e5e7eb;">
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Invoice #</th>
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Term</th>
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Issue Date</th>
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Due Date</th>
+                        <th style="text-align: right; padding: 12px; font-weight: 600;">Amount</th>
+                        <th style="text-align: center; padding: 12px; font-weight: 600;">Status</th>
+                        <th style="text-align: center; padding: 12px; font-weight: 600;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                    <tr class="invoice-row" data-status="{% if invoice.is_paid %}paid{% else %}{% if invoice.is_overdue %}overdue{% else %}unpaid{% endif %}{% endif %}" style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 12px;">{{ invoice.invoice_number }}</td>
+                        <td style="padding: 12px;">{{ invoice.fee_structure.term.name }}</td>
+                        <td style="padding: 12px;">{{ invoice.issue_date|date:"M d, Y" }}</td>
+                        <td style="padding: 12px;">
+                            <span class="{% if invoice.is_overdue %}overdue{% endif %}">
+                                {{ invoice.due_date|date:"M d, Y" }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px; text-align: right; font-weight: 600;">₦{{ invoice.total_amount|floatformat:2 }}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <span class="status-badge {% if invoice.is_paid %}paid{% else %}{% if invoice.is_overdue %}overdue{% else %}pending{% endif %}{% endif %}">
+                                {% if invoice.is_paid %}Paid{% else %}{% if invoice.is_overdue %}Overdue{% else %}Pending{% endif %}{% endif %}
+                            </span>
+                        </td>
+                        <td style="padding: 12px; text-align: center;">
+                            <button class="view-btn" onclick="toggleBreakdown('breakdown-{{ invoice.id }}')">View</button>
+                            {% if not invoice.is_paid %}
+                            <form action="{% url 'initiate_payment' invoice.id %}" method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="email" name="email" placeholder="Your email" required 
+                                       style="padding: 6px; border: 1px solid #e5e7eb; border-radius: 6px; margin-right: 8px;"
+                                       value="{{ request.user.email }}">
+                                <button type="submit" class="pay-btn">Pay Now</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    
+                    <!-- Invoice Breakdown Row -->
+                    <tr id="breakdown-{{ invoice.id }}" class="breakdown-row" style="display: none;">
+                        <td colspan="7" style="padding: 0; border-bottom: 1px solid #f1f5f9;">
+                            <div class="breakdown-content">
+                                <h4 style="margin: 0 0 15px 0; color: #374151;">Fee Structure Breakdown</h4>
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background-color: #f9fafb;">
+                                            <th style="text-align: left; padding: 10px; font-weight: 600;">Fee Item</th>
+                                            <th style="text-align: left; padding: 10px; font-weight: 600;">Category</th>
+                                            <th style="text-align: right; padding: 10px; font-weight: 600;">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in invoice.fee_items %}
+                                        <tr>
+                                            <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">{{ item.fee_item.name }}</td>
+                                            <td style="padding: 10px; border-bottom: 1px solid #f3f4f6;">{{ item.fee_item.category.name }}</td>
+                                            <td style="padding: 10px; text-align: right; border-bottom: 1px solid #f3f4f6;">₦{{ item.amount|floatformat:2 }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                        <tr style="background-color: #f0f9ff;">
+                                            <td style="padding: 10px; font-weight: 600;" colspan="2">Total Amount</td>
+                                            <td style="padding: 10px; text-align: right; font-weight: 600;">₦{{ invoice.total_amount|floatformat:2 }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>No invoices found</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+            <h3 class="card-title">
+                <div class="card-icon">📊</div>
+                Payment History
+            </h3>
+        </div>
+
+        <div class="payment-history">
+            {% if payment_history %}
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #e5e7eb;">
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Date</th>
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Invoice #</th>
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Method</th>
+                        <th style="text-align: right; padding: 12px; font-weight: 600;">Amount</th>
+                        <th style="text-align: left; padding: 12px; font-weight: 600;">Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payment_history %}
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 12px;">{{ payment.payment_date|date:"M d, Y" }}</td>
+                        <td style="padding: 12px;">{{ payment.invoice.invoice_number }}</td>
+                        <td style="padding: 12px; text-transform: capitalize;">{{ payment.payment_method }}</td>
+                        <td style="padding: 12px; text-align: right; font-weight: 600; color: #059669;">
+                            ₦{{ payment.amount|floatformat:2 }}
+                        </td>
+                        <td style="padding: 12px; font-family: monospace;">{{ payment.transaction_reference }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>No payment history found</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .status-badge.paid {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-badge.pending {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-badge.overdue {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .overdue {
+        color: #ef4444;
+        font-weight: 600;
+    }
+    
+    .view-btn, .pay-btn {
+        padding: 6px 12px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .view-btn {
+        background-color: #3b82f6;
+        color: white;
+        margin-right: 8px;
+    }
+    
+    .view-btn:hover {
+        background-color: #2563eb;
+    }
+    
+    .pay-btn {
+        background-color: #059669;
+        color: white;
+    }
+    
+    .pay-btn:hover {
+        background-color: #047857;
+    }
+    
+    .invoice-row:hover {
+        background-color: #f8fafc;
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 40px 20px;
+        color: #9ca3af;
+    }
+    
+    .filter-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .breakdown-content {
+        padding: 20px;
+        background-color: #fafafa;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .breakdown-row {
+        background-color: #f8fafc;
+    }
+</style>
+
+<script>
+    function filterInvoices() {
+        const filter = document.getElementById('statusFilter').value;
+        const rows = document.querySelectorAll('.invoice-row');
+        
+        rows.forEach(row => {
+            if (filter === 'all' || row.getAttribute('data-status') === filter) {
+                row.style.display = '';
+                // Also hide any visible breakdowns for filtered out rows
+                const breakdownId = 'breakdown-' + row.dataset.invoiceId;
+                const breakdown = document.getElementById(breakdownId);
+                if (breakdown) breakdown.style.display = 'none';
+            } else {
+                row.style.display = 'none';
+                // Also hide any visible breakdowns for filtered out rows
+                const breakdownId = 'breakdown-' + row.dataset.invoiceId;
+                const breakdown = document.getElementById(breakdownId);
+                if (breakdown) breakdown.style.display = 'none';
+            }
+        });
+    }
+    
+    function toggleBreakdown(breakdownId) {
+        const breakdown = document.getElementById(breakdownId);
+        if (breakdown.style.display === 'none') {
+            breakdown.style.display = 'table-row';
+        } else {
+            breakdown.style.display = 'none';
+        }
+    }
+    
+    // Initialize filter on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        filterInvoices();
+        
+        // Add invoice ID to each row for easier filtering
+        document.querySelectorAll('.invoice-row').forEach(row => {
+            const breakdownId = row.nextElementSibling.id;
+            const invoiceId = breakdownId.replace('breakdown-', '');
+            row.dataset.invoiceId = invoiceId;
+        });
+    });
+</script>
+{% endblock %}

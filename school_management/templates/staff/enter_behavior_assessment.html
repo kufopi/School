@@ -1,0 +1,195 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Behavior Assessment - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="mb-6">
+        <a href="{% url 'class_teacher_dashboard' %}" class="back-link">
+            <i class="fas fa-arrow-left"></i>
+            Back to Class Dashboard
+        </a>
+    </div>
+
+    <div class="header">
+        <div class="student-info">
+            <div class="avatar">
+                {{ student.user.get_full_name|first|upper }}
+            </div>
+            <div class="student-details">
+                <h1>Behavior Assessment</h1>
+                <div class="student-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>{{ student.user.get_full_name }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-id-card"></i>
+                        <span>{{ student.student_id }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>{{ current_term }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if existing_assessment %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+            <p class="font-semibold">⚠️ Note: An assessment already exists for this term.</p>
+            <p class="text-sm mt-1">Submitting this form will update the existing assessment. Last assessed on: {{ existing_assessment.assessment_date|date:"d M, Y" }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Assessment Form -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <div class="card-icon" style="background: linear-gradient(135deg, #8b5cf6, #a855f7);">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                {% if existing_assessment %}Update{% else %}Enter{% endif %} Assessment
+            </h2>
+        </div>
+        
+        <!-- Rating Scale Legend -->
+        <div class="alert alert-info mb-6">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <h3 class="font-bold text-gray-800 mb-2">Rating Scale:</h3>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                    <div class="flex items-center">
+                        <span class="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">1</span>
+                        <span>Needs Improvement</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">2</span>
+                        <span>Developing</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="bg-yellow-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">3</span>
+                        <span>Satisfactory</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">4</span>
+                        <span>Good</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">5</span>
+                        <span>Excellent</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="space-y-6">
+                <!-- Participation -->
+                <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <label class="form-label mb-3">
+                        Participation
+                        <span class="text-sm font-normal text-gray-600">(Class engagement, teamwork)</span>
+                    </label>
+                    <div class="flex flex-wrap gap-4">
+                        {% for value, label in form.participation.field.choices %}
+                        <label class="flex items-center cursor-pointer p-2 rounded hover:bg-gray-100 transition-colors">
+                            <input type="radio" 
+                                   name="participation" 
+                                   value="{{ value }}" 
+                                   {% if existing_assessment.participation == value %}checked{% endif %}
+                                   class="mr-2"
+                                   required>
+                            <span class="text-sm font-medium">{{ value }} - {{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Responsibility -->
+                <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <label class="form-label mb-3">
+                        Responsibility
+                        <span class="text-sm font-normal text-gray-600">(Completing assignments, following rules)</span>
+                    </label>
+                    <div class="flex flex-wrap gap-4">
+                        {% for value, label in form.responsibility.field.choices %}
+                        <label class="flex items-center cursor-pointer p-2 rounded hover:bg-gray-100 transition-colors">
+                            <input type="radio" 
+                                   name="responsibility" 
+                                   value="{{ value }}" 
+                                   {% if existing_assessment.responsibility == value %}checked{% endif %}
+                                   class="mr-2"
+                                   required>
+                            <span class="text-sm font-medium">{{ value }} - {{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Creativity -->
+                <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <label class="form-label mb-3">
+                        Creativity
+                        <span class="text-sm font-normal text-gray-600">(Thinking skills, innovation)</span>
+                    </label>
+                    <div class="flex flex-wrap gap-4">
+                        {% for value, label in form.creativity.field.choices %}
+                        <label class="flex items-center cursor-pointer p-2 rounded hover:bg-gray-100 transition-colors">
+                            <input type="radio" 
+                                   name="creativity" 
+                                   value="{{ value }}" 
+                                   {% if existing_assessment.creativity == value %}checked{% endif %}
+                                   class="mr-2"
+                                   required>
+                            <span class="text-sm font-medium">{{ value }} - {{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Cooperation -->
+                <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <label class="form-label mb-3">
+                        Cooperation
+                        <span class="text-sm font-normal text-gray-600">(Social skills, respect for others)</span>
+                    </label>
+                    <div class="flex flex-wrap gap-4">
+                        {% for value, label in form.cooperation.field.choices %}
+                        <label class="flex items-center cursor-pointer p-2 rounded hover:bg-gray-100 transition-colors">
+                            <input type="radio" 
+                                   name="cooperation" 
+                                   value="{{ value }}" 
+                                   {% if existing_assessment.cooperation == value %}checked{% endif %}
+                                   class="mr-2"
+                                   required>
+                            <span class="text-sm font-medium">{{ value }} - {{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-4 mt-6">
+                <a href="{% url 'class_teacher_dashboard' %}" 
+                   class="btn btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="btn btn-primary"
+                        style="background: linear-gradient(135deg, #8b5cf6, #a855f7);">
+                    <i class="fas fa-save me-2"></i>
+                    {% if existing_assessment %}Update{% else %}Save{% endif %} Assessment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

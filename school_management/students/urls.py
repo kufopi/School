@@ -7,7 +7,7 @@ from .views import (
     edit_behavior_assessment,
     add_student_result,
     edit_student_result,
-    update_attendance
+    update_attendance,student_term_report,
 )
 
 urlpatterns = [
@@ -33,4 +33,5 @@ urlpatterns = [
 
     # Attendance URLs
     path('<int:student_id>/attendance/update/', update_attendance, name='update_attendance'),
+    path('<int:student_id>/term-report/', student_term_report, name='student_term_report'),
 ]

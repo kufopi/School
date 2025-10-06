@@ -1,330 +1,874 @@
-
-{% extends 'core/base.html' %}
 {% load student_tags %}
-{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - {{ student.user.get_full_name }}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-{% block extra_css %}
-<style>
-    .skill-meter {
-        height: 20px;
-        background: #f0f0f0;
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    .skill-progress {
-        height: 100%;
-        background: linear-gradient(90deg, #4e73df, #1cc88a);
-    }
-    .attendance-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        display: inline-block;
-    }
-    .present { background-color: #1cc88a; }
-    .absent { background-color: #e74a3b; }
-    .edit-btn-group {
-        position: absolute;
-        top: 10px;
-        right: 15px;
-    }
-</style>
-{% endblock %}
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
 
-{% block content %}
-<div class="container-fluid">
-    <!-- Header with Student Info -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">
-            Student Dashboard - {{ student.user.get_full_name }}
-            <small class="text-muted">{{ student.current_class }}</small>
-        </h1>
-        {% if can_edit %}
-        <div class="btn-group">
-            <a href="{% url 'edit_student_health' student.id %}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-clipboard-pulse"></i> Health
-            </a>
-            <a href="{% url 'add_behavior_assessment' student.id %}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-clipboard-check"></i> Behavior
-            </a>
-        </div>
-        {% endif %}
-    </div>
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-    <!-- Behavior & Skills Section -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 position-relative">
-            <h6 class="m-0 font-weight-bold text-primary">Behavior & Skills Assessment</h6>
-            {% if can_edit and current_stats.behavior %}
-            <div class="edit-btn-group">
-                <a href="{% url 'edit_behavior_assessment' current_stats.behavior.id %}" 
-                   class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
-            </div>
-            {% endif %}
-        </div>
-        <div class="card-body">
-            {% if current_stats.behavior %}
-            <div class="row">
-                {% for skill in skill_labels %}
-                <div class="col-md-3 mb-4">
-                    <h6 class="small font-weight-bold">{{ skill }} 
-                        <span class="float-right">{{ current_stats.behavior|get_attr:skill.lower }}/5</span>
-                    </h6>
-                    <div class="skill-meter">
-                        <div class="skill-progress" 
-                             style="width: {{ current_stats.behavior|get_attr:skill.lower|multiply:20 }}%"></div>
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .student-info {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        }
+
+        .student-details h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .student-meta {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .meta-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            width: 24px;
+            height: 24px;
+            padding: 6px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .edit-btn {
+            background: #f3f4f6;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #6b7280;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+
+        .edit-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            background: #e5e7eb;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .behavior-skills {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .skill-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .skill-name {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .skill-score {
+            font-weight: 600;
+            color: #6366f1;
+        }
+
+        .attendance-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .health-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .health-metric {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+            border-radius: 12px;
+            border: 1px solid #d1fae5;
+        }
+
+        .health-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #059669;
+            margin-bottom: 4px;
+        }
+
+        .health-unit {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .subjects-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .subject-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .subject-item:last-child {
+            border-bottom: none;
+        }
+
+        .subject-name {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .subject-scores {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .score-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #9ca3af;
+            font-style: italic;
+            padding: 40px 20px;
+        }
+
+        .term-badge {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 15px;
+            }
+            
+            .student-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .student-meta {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .behavior-skills {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .nav-link {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.nav-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.dashboard-nav {
+    margin-top: 15px;
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="student-info">
+                <div class="avatar">
+                    {% if student.photo %}
+                        <img src="{{ student.photo.url }}" alt="{{ student.user.get_full_name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                    {% else %}
+                        {% firstof student.user.first_name|first student.user.get_full_name|first %}{% firstof student.user.last_name|first '' %}
+                    {% endif %}
+                </div>
+                <div class="student-details">
+                    <h1>{{ student.user.get_full_name }}</h1>
+                    <div class="student-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">🆔</span>
+                            <span>{{ student.student_id }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🏫</span>
+                            <span>{{ student.current_class }}</span>
+                        </div>
+                        {% if current_term %}
+                        <div class="meta-item">
+                            <span class="meta-icon">📅</span>
+                            <span>{{ current_term.session.name }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="term-badge">{{ current_term.name }}</span>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-                {% endfor %}
+            </div>
+                <div class="dashboard-nav" style="margin-top: 15px; display: flex; gap: 15px; justify-content: flex-end;">
+                    <a href="{% url 'student_term_report' student.id %}" class="nav-link">
+                        <span style="font-size: 16px;">📊</span>
+                        Term Report
+                    </a>
+
+                    <a href="{% url 'student_finance_dashboard' student.id %}" class="nav-link">
+                        <span style="font-size: 16px;">💰</span>
+                        Finance
+                    </a>
+
+
+                    <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link" style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none; cursor: pointer;">
+                            <span style="font-size: 16px;">🚪</span>
+                            Logout
+                        </button>
+                    </form>
+                </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="grid">
+            <!-- Academic Performance -->
+                    <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <div class="card-icon">📊</div>
+                    Academic Performance
+                </h3>
+                {% if can_edit %}
+                <a href="{% url 'add_student_result' student.id %}" class="edit-btn">Add Result</a>
+                {% endif %}
             </div>
             
-            <div class="mt-4">
-                <canvas id="behaviorChart" height="100"></canvas>
+            {% if academic_data %}
+            <div class="stats-grid">
+                <div class="stat-item">
+                    {% with latest_term=academic_data|last %}
+                    <div class="stat-value">{{ latest_term.term_avg|safe_floatformat:1 }}</div>
+                    {% endwith %}
+                    <div class="stat-label">Your Average</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ class_stats.class_average|safe_floatformat:1 }}</div>
+                    <div class="stat-label">Class Average</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ class_stats.student_count }}</div>
+                    <div class="stat-label">Class Size</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ current_stats.subjects|length }}</div>
+                    <div class="stat-label">Subjects</div>
+                </div>
+            </div>
+
+            <!-- Add comparison indicator -->
+            <div style="margin: 15px 0; padding: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 500; color: #374151;">Performance vs Class Average</span>
+                    <span style="font-weight: 600; color: 
+                        {% with latest_term=academic_data|last %}
+                            {% if latest_term.term_avg > class_stats.class_average %}#059669
+                            {% elif latest_term.term_avg == class_stats.class_average %}#f59e0b
+                            {% else %}#ef4444
+                            {% endif %}
+                        {% endwith %};">
+                        {% with latest_term=academic_data|last %}
+                            {% if latest_term.term_avg > class_stats.class_average %}+
+                            {% endif %}
+                            {{ latest_term.term_avg|subtract:class_stats.class_average|safe_floatformat:1 }}%
+                        {% endwith %}
+                    </span>
+                </div>
+                <div class="progress-bar">
+                    {% with latest_term=academic_data|last %}
+                    <div class="progress-fill" style="width: {{ latest_term.term_avg }}%; background: 
+                        {% if latest_term.term_avg > class_stats.class_average %}linear-gradient(90deg, #10b981, #059669)
+                        {% elif latest_term.term_avg == class_stats.class_average %}linear-gradient(90deg, #f59e0b, #f97316)
+                        {% else %}linear-gradient(90deg, #ef4444, #dc2626)
+                        {% endif %};">
+                    </div>
+                    {% endwith %}
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6b7280; margin-top: 5px;">
+                    <span>0</span>
+                    <span>Class Avg: {{ class_stats.class_average|safe_floatformat:1 }}</span>
+                    <span>100</span>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="academicChart"></canvas>
             </div>
             {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted">No behavior assessment for current term</p>
-                {% if can_edit %}
-                <a href="{% url 'add_behavior_assessment' student.id %}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus"></i> Add Assessment
-                </a>
-                {% endif %}
-            </div>
+            <div class="no-data">No academic data available</div>
             {% endif %}
         </div>
-    </div>
 
-    <!-- Attendance Section -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center position-relative">
-            <div>
-                <h6 class="m-0 font-weight-bold text-primary">Attendance Record</h6>
+            <!-- Behavior Assessment -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <div class="card-icon">⭐</div>
+                        Behavior Assessment
+                    </h3>
+                    {% if can_edit %}
+                        {% if current_stats.behavior %}
+                        <a href="{% url 'edit_behavior_assessment' current_stats.behavior.id %}" class="edit-btn">Edit</a>
+                        {% else %}
+                        <a href="{% url 'add_behavior_assessment' student.id %}" class="edit-btn">Add</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                
+                {% if current_stats.behavior %}
+                <div class="behavior-skills">
+                    <div class="skill-item">
+                        <span class="skill-name">Participation</span>
+                        <span class="skill-score">{{ current_stats.behavior.participation }}/5</span>
+                    </div>
+                    <div class="skill-item">
+                        <span class="skill-name">Responsibility</span>
+                        <span class="skill-score">{{ current_stats.behavior.responsibility }}/5</span>
+                    </div>
+                    <div class="skill-item">
+                        <span class="skill-name">Creativity</span>
+                        <span class="skill-score">{{ current_stats.behavior.creativity }}/5</span>
+                    </div>
+                    <div class="skill-item">
+                        <span class="skill-name">Cooperation</span>
+                        <span class="skill-score">{{ current_stats.behavior.cooperation }}/5</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 500;">Overall Score</span>
+                        <span style="font-weight: 600; color: #6366f1;">{{ current_stats.behavior|behavior_avg|safe_floatformat:1 }}/5</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ current_stats.behavior|behavior_avg|multiply:20 }}%;"></div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-data">No behavior assessment available for current term</div>
+                {% endif %}
+            </div>
+
+            <!-- Attendance -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <div class="card-icon">📅</div>
+                        Attendance
+                    </h3>
+                    {% if can_edit %}
+                    <a href="{% url 'update_attendance' student.id %}" class="edit-btn">Update</a>
+                    {% endif %}
+                </div>
+                
                 {% if current_stats.attendance %}
-                <span class="attendance-dot present"></span> 
-                <small>Present: {{ current_stats.attendance.days_present }}</small>
-                <span class="attendance-dot absent ml-3"></span> 
-                <small>Absent: {{ current_stats.attendance.days_absent }}</small>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ current_stats.attendance.attendance_rate|safe_floatformat:0 }}%</div>
+                        <div class="stat-label">Attendance Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ current_stats.attendance.days_present }}</div>
+                        <div class="stat-label">Days Present</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ current_stats.attendance.days_absent }}</div>
+                        <div class="stat-label">Days Absent</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span class="attendance-indicator" style="background-color: {% if current_stats.attendance.attendance_rate >= 90 %}#22c55e{% elif current_stats.attendance.attendance_rate >= 80 %}#f59e0b{% else %}#ef4444{% endif %};"></span>
+                        <span style="font-size: 14px; color: #374151;">
+                            {% if current_stats.attendance.attendance_rate >= 90 %}
+                                Excellent attendance record
+                            {% elif current_stats.attendance.attendance_rate >= 80 %}
+                                Good attendance record
+                            {% else %}
+                                Needs improvement
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ current_stats.attendance.attendance_rate|safe_floatformat:0 }}%;"></div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-data">No attendance data available for current term</div>
                 {% endif %}
             </div>
-            {% if can_edit %}
-            <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#attendanceModal">
-                <i class="fas fa-edit"></i> Update
-            </button>
-            {% endif %}
-        </div>
-        <div class="card-body">
-            <div class="chart-area">
-                <canvas id="attendanceChart"></canvas>
-            </div>
-        </div>
-    </div>
 
-    <!-- Combined Health & Behavior Timeline -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Development Timeline</h6>
-        </div>
-        <div class="card-body">
-            <div class="chart-area">
-                <canvas id="timelineChart" height="100"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Subject Performance Section -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Academic Performance</h6>
-            {% if can_edit %}
-            <a href="{% url 'add_student_result' student.id %}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-plus"></i> Add Result
-            </a>
-            {% endif %}
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead class="thead-light">
-                        <tr>
-                            <th>Subject</th>
-                            <th>Average</th>
-                            <th>Highest</th>
-                            <th>Lowest</th>
-                            <th>Progress</th>
-                            {% if can_edit %}<th>Actions</th>{% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for subject in current_stats.subjects %}
-                        <tr>
-                            <td>{{ subject.subject__name }}</td>
-                            <td>{{ subject.avg_score|floatformat:1 }}%</td>
-                            <td>{{ subject.highest_score|floatformat:1 }}%</td>
-                            <td>{{ subject.lowest_score|default:"-" }}</td>
-                            <td>
-                                <div class="progress progress-sm">
-                                    <div class="progress-bar bg-success" style="width: {{ subject.avg_score }}%"></div>
-                                </div>
-                            </td>
-                            {% if can_edit %}
-                            <td>
-                                <a href="{% url 'edit_student_result' student.id subject.subject__name %}" 
-                                   class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="{% if can_edit %}6{% else %}5{% endif %}" class="text-center">No results available</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Attendance Update Modal -->
-{% if can_edit %}
-<div class="modal fade" id="attendanceModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Update Attendance</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <form method="post" action="{% url 'update_attendance' student.id %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <!-- Attendance form fields would go here -->
-                    <div class="form-group">
-                        <label>Days Present</label>
-                        <input type="number" name="days_present" class="form-control" 
-                               value="{{ current_stats.attendance.days_present|default:0 }}">
-                    </div>
-                    <div class="form-group">
-                        <label>Days Absent</label>
-                        <input type="number" name="days_absent" class="form-control" 
-                               value="{{ current_stats.attendance.days_absent|default:0 }}">
-                    </div>
+            <!-- Health Records -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <div class="card-icon">🏥</div>
+                        Health Records
+                    </h3>
+                    {% if can_edit %}
+                    <a href="{% url 'edit_student_health' student.id %}" class="edit-btn">Update</a>
+                    {% endif %}
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Save changes</button>
+                
+                {% if health_records %}
+                    {% with latest_record=health_records|first %}
+                    <div class="health-metrics">
+                        <div class="health-metric">
+                            <div class="health-value">{{ latest_record.height|safe_decimal|safe_floatformat:1 }}</div>
+                            <div class="health-unit">cm</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Height</div>
+                        </div>
+                        <div class="health-metric">
+                            <div class="health-value">{{ latest_record.weight|safe_decimal|safe_floatformat:1 }}</div>
+                            <div class="health-unit">kg</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Weight</div>
+                        </div>
+                        <div class="health-metric">
+                            <div class="health-value">{{ latest_record.bmi|safe_decimal|safe_floatformat:1 }}</div>
+                            <div class="health-unit">BMI</div>
+                            <div style="font-size: 12px; color: {% if latest_record.bmi|safe_decimal >= 18.5 and latest_record.bmi|safe_decimal <= 24.9 %}#059669{% else %}#f59e0b{% endif %}; margin-top: 4px;">
+                                {% if latest_record.bmi|safe_decimal >= 18.5 and latest_record.bmi|safe_decimal <= 24.9 %}
+                                    Healthy
+                                {% else %}
+                                    Monitor
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <canvas id="healthChart" style="height: 150px;"></canvas>
+                    </div>
+                    {% endwith %}
+                {% else %}
+                <div class="no-data">No health records available</div>
+                {% endif %}
+            </div>
+
+            <!-- Current Subjects -->
+            <div class="card" style="grid-column: span 2;">
+    <div class="card-header">
+        <h3 class="card-title">
+            <div class="card-icon">📚</div>
+            Current Subjects Performance (Weighted Scores)
+        </h3>
+        {% if can_edit %}
+        <a href="{% url 'add_student_result' student.id %}" class="edit-btn">Add Result</a>
+        {% endif %}
+    </div>
+    
+    {% if current_stats.subjects %}
+    <div class="subjects-list">
+        {% for subject in current_stats.subjects %}
+        <div class="subject-item">
+            <span class="subject-name">{{ subject.subject__name }}</span>
+            <div class="subject-scores">
+                <div class="score-item">
+                    <div class="score-value">
+                        {% if subject.final_score %}
+                            {{ subject.final_score|floatformat:1 }}/100
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="score-label">Final Score</div>
                 </div>
-            </form>
+                <div class="score-item">
+                    <div class="score-value">{{ subject.grade }}</div>
+                    <div class="score-label">Grade</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-value">
+                        {% if subject.avg_score %}
+                            {{ subject.avg_score|floatformat:1 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="score-label">Avg Raw</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-value">
+                        {% if subject.highest_score %}
+                            {{ subject.highest_score|floatformat:1 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="score-label">Highest</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-value">
+                        {% if subject.lowest_score %}
+                            {{ subject.lowest_score|floatformat:1 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="score-label">Lowest</div>
+                </div>
+                {% if can_edit %}
+                <div class="score-item">
+                    <a href="{% url 'edit_student_result' student.id subject.subject__id %}" class="edit-btn" style="padding: 4px 8px; font-size: 10px;">Edit</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-data">No subject performance data available for current term</div>
+    {% endif %}
+</div>
         </div>
     </div>
-</div>
-{% endif %}
 
-{% endblock %}
-
-{% block extra_js %}
-
-<script>
-    // Behavior Radar Chart
-    const behaviorCtx = document.getElementById('behaviorChart').getContext('2d');
-    new Chart(behaviorCtx, {
-        type: 'radar',
-        data: {
-            labels: {{ skill_labels|safe }},
-            datasets: [{
-                label: 'Current Term',
-                data: [
-                    {{ current_stats.behavior.participation }},
-                    {{ current_stats.behavior.responsibility }},
-                    {{ current_stats.behavior.creativity }},
-                    {{ current_stats.behavior.cooperation }}
-                ],
-                backgroundColor: 'rgba(78, 115, 223, 0.2)',
-                borderColor: 'rgba(78, 115, 223, 1)',
-                pointBackgroundColor: 'rgba(78, 115, 223, 1)',
-                pointRadius: 4
-            }]
-        },
-        options: {
-            scales: {
-                r: {
-                    angleLines: { display: true },
-                    suggestedMin: 1,
-                    suggestedMax: 5,
-                    ticks: { stepSize: 1 }
+    <script>
+        // Academic Performance Chart
+        {% if academic_data %}
+        const academicCtx = document.getElementById('academicChart').getContext('2d');
+        new Chart(academicCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for term in academic_data %}'{{ term.term__name }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Academic Average',
+                    data: [{% for term in academic_data %}{{ term.term_avg|safe_decimal }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#6366f1',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
                 }
             }
-        }
-    });
+        });
+        {% endif %}
 
-    // Attendance Chart
-    const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
-    new Chart(attendanceCtx, {
-        type: 'bar',
-        data: {
-            labels: {{ attendance_records|map_attribute:'term__name'|safe }},
-            datasets: [{
-                label: 'Present',
-                data: {{ attendance_records|map_attribute:'days_present'|safe }},
-                backgroundColor: '#1cc88a'
-            }, {
-                label: 'Absent',
-                data: {{ attendance_records|map_attribute:'days_absent'|safe }},
-                backgroundColor: '#e74a3b'
-            }]
-        },
-        options: {
-            scales: {
-                x: { stacked: true },
-                y: { stacked: true }
-            }
-        }
-    });
-
-    // Combined Timeline Chart
-    const timelineCtx = document.getElementById('timelineChart').getContext('2d');
-    new Chart(timelineCtx, {
-        type: 'line',
-        data: {
-            labels: {{ behavior_assessments|map_attribute:'term__name'|safe }},
-            datasets: [
-                {
-                    label: 'Behavior Average',
-                    data: {{ behavior_assessments|map_behavior_average|safe }},
-                    borderColor: '#4e73df',
-                    yAxisID: 'y',
-                    tension: 0.3
-                },
-                {
+        // Health Chart (BMI over time)
+        {% if health_records %}
+        const healthCtx = document.getElementById('healthChart').getContext('2d');
+        new Chart(healthCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for record in health_records|slice:":5" %}'{{ record.record_date|date:"M" }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                datasets: [{
                     label: 'BMI',
-                    data: {{ health_records|map_bmi_values|safe }},
-                    borderColor: '#f6c23e',
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-        options: {
-            scales: {
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    min: 1,
-                    max: 5
+                    data: [{% for record in health_records|slice:":5" %}{{ record.bmi|safe_decimal }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderRadius: 8,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
                 },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: { drawOnChartArea: false }
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 25,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
                 }
             }
+        });
+        {% endif %}
+
+        // Animate counters
+        function animateValue(element, start, end, duration) {
+            if (isNaN(end)) return;
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const currentValue = Math.floor(progress * (end - start) + start);
+                element.innerHTML = currentValue + (element.innerHTML.includes('%') ? '%' : '');
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
         }
-    });
-</script>
-{% endblock %}
+
+        // Initialize counter animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const statValues = document.querySelectorAll('.stat-value');
+            statValues.forEach(stat => {
+                const value = parseFloat(stat.textContent);
+                if (!isNaN(value)) {
+                    const originalText = stat.textContent;
+                    stat.textContent = '0' + (originalText.includes('%') ? '%' : '');
+                    setTimeout(() => {
+                        animateValue(stat, 0, value, 1000);
+                    }, 200);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

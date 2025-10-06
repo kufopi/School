@@ -1,6 +1,12 @@
 # finance/urls.py
 from django.urls import path
 from . import views
+from .views import InitiatePaymentView, verify_payment
+from .views import (
+    accountant_dashboard, record_payment, payment_history,
+    outstanding_report, collection_report, student_ledger,
+    search_student_invoice
+)
 
 urlpatterns = [
     # Fee Categories
@@ -32,4 +38,21 @@ urlpatterns = [
     path('reports/fee-structures/', views.fee_structure_report, name='fee_structure_report'),
     path('reports/fee-structures/<int:term_id>/', views.fee_structure_report, name='fee_structure_report_term'),
     path('invoices/generate/<int:term_id>/', views.generate_term_invoices, name='generate_term_invoices'),
+
+    path('invoice/<int:invoice_id>/pay/', InitiatePaymentView.as_view(), name='initiate_payment'),
+    path('payment/verify/<int:invoice_id>/', verify_payment, name='verify_payment'),
+
+    path('student-finance/<int:student_id>/', views.student_finance_dashboard, name='student_finance_dashboard'),
+    path('student-finance/', views.student_finance_dashboard, name='my_finance_dashboard'),
+
+
+
+    path('accountant/', accountant_dashboard, name='accountant_dashboard'),
+    path('accountant/record-payment/', record_payment, name='record_payment'),
+    path('accountant/record-payment/<int:invoice_id>/', record_payment, name='record_payment_invoice'),
+    path('accountant/payment-history/', payment_history, name='payment_history'),
+    path('accountant/outstanding/', outstanding_report, name='outstanding_report'),
+    path('accountant/collections/', collection_report, name='collection_report'),
+    path('accountant/ledger/<int:student_id>/', student_ledger, name='student_ledger'),
+    path('accountant/search/', search_student_invoice, name='search_student_invoice'),
 ]

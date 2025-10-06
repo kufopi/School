@@ -5,7 +5,8 @@ from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle, Image
 from reportlab.lib.units import inch
 from django.conf import settings
-from django.db.models import Avg
+from django.db.models import Avg,F
+from django.db import models
 from django.utils import timezone
 import os
 
@@ -51,58 +52,65 @@ def generate_term_report_pdf(report):
     
     # Get all results for this student and term
     results = report.result_set.all().select_related('subject')
-    class_teacher = student.current_class.classteacher_set.filter(
+    class_teacher = report.student.current_class.classteacher_set.filter(
         academic_session=report.term.session
     ).first()
     
     # Calculate class averages for each subject
-    from academics.models import Result
+    from academics.models import Result,TermReport
     class_avg_data = Result.objects.filter(
         term=report.term,
-        student__current_class=student.current_class
+        student__current_class=report.student.current_class
     ).values('subject__id', 'subject__name').annotate(
-        class_avg=Avg('score')
+        class_avg=Avg(
+            (models.F('score') / models.F('exam_type__max_score')) * models.F('exam_type__weight') * 100 / models.F('exam_type__weight'),
+            output_field=models.FloatField()
+        )
     ).order_by('subject__name')
     
     # Prepare results table data
-    data = [["Subject", "Score", "Grade", "Remark", "Class Avg", "Difference"]]
+    data = [["Subject", "CA (40)", "Exam (60)", "Total (100)", "Grade", "Remark", "Class Avg", "Difference"]]
+    subject_results = report.get_subject_results()
     student_avg = 0
+    result_count = 0
     
-    for result in results:
-        # Find class average for this subject
+    for result in subject_results:
+        ca_score = next((r.score for r in result['results'] if r.exam_type.name.lower() == 'ca'), None)
+        exam_score = next((r.score for r in result['results'] if r.exam_type.name.lower() == 'exam'), None)
+        total_score = result['total_score']
         subject_avg = next(
-            (item['class_avg'] for item in class_avg_data 
-            if item['subject__id'] == result.subject.id), 0
+            (item['class_avg'] for item in class_avg_data if item['subject__id'] == result['subject'].id), 0
         )
-        
-        grade = calculate_grade(result.score)
-        remark = get_remark(result.score)
-        difference = result.score - subject_avg
+        difference = total_score - subject_avg if subject_avg else 0
         
         data.append([
-            result.subject.name,
-            f"{result.score:.1f}%",
-            grade,
-            remark,
-            f"{subject_avg:.1f}%",
-            f"{difference:+.1f}%"
+            result['subject'].name,
+            f"{ca_score:.1f}/40" if ca_score is not None else "-",
+            f"{exam_score:.1f}/60" if exam_score is not None else "-",
+            f"{total_score:.1f}/100",
+            result['grade'],
+            get_remark(total_score),
+            f"{subject_avg:.1f}/100" if subject_avg else "-",
+            f"{difference:+.1f}"
         ])
-        student_avg += result.score
+        student_avg += total_score
+        result_count += 1
     
-    # Calculate student average if there are results
-    if results.exists():
-        student_avg = student_avg / len(results)
+    if result_count > 0:
+        student_avg = student_avg / result_count
         data.append([
-            "OVERALL", 
-            f"{student_avg:.1f}%", 
-            calculate_grade(student_avg), 
+            "OVERALL",
+            "-",
+            "-",
+            f"{student_avg:.1f}/100",
+            TermReport.calculate_subject_grade(None, student_avg),
             get_remark(student_avg),
             "",
             ""
         ])
     
     # Create and style results table
-    table = Table(data, colWidths=[150, 60, 50, 100, 60, 60])
+    table = Table(data, colWidths=[120, 60, 60, 60, 50, 80, 60, 60])
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#003366")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -114,9 +122,9 @@ def generate_term_report_pdf(report):
         ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('TEXTCOLOR', (4, 1), (4, -1), colors.HexColor("#555555")),  # Class avg column
-        ('TEXTCOLOR', (5, 1), (5, -1), lambda r, c: 
-            colors.red if float(data[r][5][:-1]) < 0 else colors.green),  # Difference column
+        ('TEXTCOLOR', (6, 1), (6, -1), colors.HexColor("#555555")),
+        ('TEXTCOLOR', (7, 1), (7, -1), lambda r, c: 
+            colors.red if float(data[r][7]) < 0 else colors.green),
     ]))
     
     # Draw results table
@@ -201,3 +209,25 @@ def get_remark(score):
     elif score >= 60: return 'Satisfactory'
     elif score >= 50: return 'Needs Improvement'
     else: return 'Poor'
+
+
+# academics/utils.py
+def calculate_final_grade(subject_grade):
+    """Calculate final grade from all assessment components"""
+    results = subject_grade.result_set.all()
+    if not results:
+        return 0, 'F'
+    
+    total_weighted_score = sum(result.weighted_score for result in results)
+    total_possible_weight = sum(result.exam_type.weight for result in results)
+    
+    # Calculate final score (scaled to 100 if weights don't total 100)
+    if total_possible_weight > 0:
+        final_score = (total_weighted_score / total_possible_weight) * 100
+    else:
+        final_score = 0
+    
+    # Calculate grade
+    grade = subject_grade.calculate_grade(final_score)
+    
+    return final_score, grade

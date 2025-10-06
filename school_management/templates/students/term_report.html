@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Term Report - {{ student.user.get_full_name }}</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .report-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 20px;
+        }
+        
+        .school-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        
+        .report-title {
+            font-size: 18px;
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        
+        .student-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f1f5f9;
+            border-radius: 6px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .info-value {
+            color: #6b7280;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .results-table th {
+            background: #003366;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .results-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .results-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        
+        .grade-A-plus { color: #059669; font-weight: bold; }
+        .grade-A { color: #059669; }
+        .grade-B { color: #d97706; }
+        .grade-C { color: #f59e0b; }
+        .grade-D { color: #dc2626; }
+        .grade-F { color: #dc2626; font-weight: bold; }
+        
+        .exam-breakdown {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .report-container {
+                box-shadow: none;
+                padding: 0;
+            }
+            
+            .action-buttons {
+                display: none;
+            }
+            
+            .results-table {
+                page-break-inside: avoid;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .student-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <div class="report-header">
+            <div class="school-name">PRIMARY SCHOOL NAME</div>
+            <div class="report-title">TERM REPORT CARD</div>
+        </div>
+        
+        <div class="student-info">
+            <div class="info-item">
+                <span class="info-label">Student Name:</span>
+                <span class="info-value">{{ student.user.get_full_name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Student ID:</span>
+                <span class="info-value">{{ student.student_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Class:</span>
+                <span class="info-value">{{ student.current_class }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Term:</span>
+                <span class="info-value">{{ current_term.name }} {{ current_term.session.name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Term Dates:</span>
+                <span class="info-value">
+                    {{ current_term.start_date|date:"M d, Y" }} to {{ current_term.end_date|date:"M d, Y" }}
+                </span>
+            </div>
+        </div>
+        
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Exam Breakdown</th>
+                    <th>Final Score</th>
+                    <th>Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in subject_results %}
+                <tr>
+                    <td>{{ result.subject.name }}</td>
+                    <td>
+                        {% for exam_type, details in result.exam_breakdown.items %}
+                        <div class="exam-breakdown">
+                            {{ exam_type }}: {{ details.score|floatformat:1 }}/{{ details.max_score }} 
+                            ({{ details.weight }}%) → {{ details.weighted_contribution|floatformat:1 }} points
+                        </div>
+                        {% endfor %}
+                        {% if not result.has_all_results %}
+                        <div class="exam-breakdown" style="color: #dc2626;">
+                            ⚠️ Incomplete assessment data
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>{{ result.final_score|floatformat:1 }}/100</td>
+                    <td class="grade-{{ result.grade }}">{{ result.grade }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #6b7280;">
+                        No results available for this term
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div class="action-buttons">
+            <a href="{% url 'student_dashboard' student.id %}" class="btn btn-secondary">
+                ← Back to Dashboard
+            </a>
+            <a href="?download=pdf" class="btn btn-primary" target="_blank">
+                📄 Download PDF
+            </a>
+            <button onclick="window.print()" class="btn btn-danger">
+                🖨️ Print Report
+            </button>
+        </div>
+    </div>
+</body>
+</html>

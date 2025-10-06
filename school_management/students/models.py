@@ -1,5 +1,6 @@
 from django.db import models
 from core.models import User
+from decimal import Decimal
 
 class Student(models.Model):
     GENDER_CHOICES = (
@@ -36,18 +37,27 @@ class StudentHealthRecord(models.Model):
     record_date = models.DateField()
     height = models.DecimalField(max_digits=4, decimal_places=1, help_text="Height in cm")
     weight = models.DecimalField(max_digits=4, decimal_places=1, help_text="Weight in kg")
-    bmi = models.DecimalField(max_digits=4, decimal_places=1, blank=True)
+    bmi = models.DecimalField(max_digits=4, decimal_places=1, blank=True, null=True)
     notes = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
-        # Calculate BMI when saving
         if self.height and self.weight:
-            self.bmi = self.weight / ((self.height/100) ** 2)
+            try:
+                height_in_meters = float(self.height) / 100
+                if height_in_meters > 0 and float(self.weight) > 0:
+                    bmi_value = float(self.weight) / (height_in_meters ** 2)
+                    self.bmi = Decimal(str(round(bmi_value, 1)))
+                else:
+                    self.bmi = None
+            except (ValueError, ZeroDivisionError, TypeError):
+                self.bmi = None
+        else:
+            self.bmi = None
         super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-record_date']
-
+        
 class BehaviorAssessment(models.Model):
     ASSESSMENT_CHOICES = [
         (1, 'Needs Improvement'),

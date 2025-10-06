@@ -1,0 +1,185 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Health Records - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="mb-6">
+        <a href="{% url 'class_teacher_dashboard' %}" class="back-link">
+            <i class="fas fa-arrow-left"></i>
+            Back to Class Dashboard
+        </a>
+    </div>
+
+    <div class="header">
+        <div class="student-info">
+            <div class="avatar">
+                {{ student.user.get_full_name|first|upper }}
+            </div>
+            <div class="student-details">
+                <h1>Health Records</h1>
+                <div class="student-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>{{ student.user.get_full_name }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-id-card"></i>
+                        <span>{{ student.student_id }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add New Health Record -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-heartbeat"></i>
+                </div>
+                Add Health Record
+            </h2>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="form-label">Record Date *</label>
+                    {{ form.record_date }}
+                    {% if form.record_date.errors %}
+                    <div class="alert alert-danger mt-2">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.record_date.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <label class="form-label">Height (cm) *</label>
+                    <input type="number" 
+                           name="height" 
+                           step="0.1" 
+                           class="form-control"
+                           placeholder="e.g., 120.5"
+                           required>
+                    {% if form.height.errors %}
+                    <div class="alert alert-danger mt-2">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.height.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="form-label">Weight (kg) *</label>
+                    <input type="number" 
+                           name="weight" 
+                           step="0.1" 
+                           class="form-control"
+                           placeholder="e.g., 35.5"
+                           required>
+                    {% if form.weight.errors %}
+                    <div class="alert alert-danger mt-2">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.weight.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="form-label text-gray-400">BMI</label>
+                    <input type="text" 
+                           class="form-control bg-gray-100"
+                           placeholder="Auto-calculated"
+                           disabled>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">Notes (Optional)</label>
+                <textarea name="notes" 
+                          rows="3" 
+                          class="form-control"
+                          placeholder="Any additional observations..."></textarea>
+                {% if form.notes.errors %}
+                <div class="alert alert-danger mt-2">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {{ form.notes.errors }}
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="flex justify-end gap-4">
+                <a href="{% url 'class_teacher_dashboard' %}" 
+                   class="btn btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>
+                    Save Health Record
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Recent Health Records -->
+    {% if recent_records %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                Recent Health Records
+            </h2>
+        </div>
+        
+        <div class="space-y-4">
+            {% for record in recent_records %}
+            <div class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Date</p>
+                        <p class="font-semibold">{{ record.record_date|date:"d M, Y" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Height</p>
+                        <p class="font-semibold">{{ record.height }} cm</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Weight</p>
+                        <p class="font-semibold">{{ record.weight }} kg</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">BMI</p>
+                        <p class="font-semibold">{{ record.bmi|default:"N/A" }}</p>
+                    </div>
+                </div>
+                {% if record.notes %}
+                <div class="mt-3 pt-3 border-t">
+                    <p class="text-sm text-gray-600 font-medium">Notes:</p>
+                    <p class="text-sm text-gray-700 mt-1">{{ record.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="no-data">
+            <i class="fas fa-clipboard-list"></i>
+            <p class="text-lg">No health records found for this student.</p>
+            <p class="text-sm text-gray-500 mt-2">Add the first health record using the form above.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

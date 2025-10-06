@@ -1,0 +1,142 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Attendance - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="mb-6">
+        <a href="{% url 'class_teacher_dashboard' %}" class="back-link">
+            <i class="fas fa-arrow-left"></i>
+            Back to Class Dashboard
+        </a>
+    </div>
+
+    <div class="header">
+        <div class="student-info">
+            <div class="avatar">
+                {{ student.user.get_full_name|first|upper }}
+            </div>
+            <div class="student-details">
+                <h1>Attendance Record</h1>
+                <div class="student-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <span>{{ student.user.get_full_name }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-id-card"></i>
+                        <span>{{ student.student_id }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>{{ current_term }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Attendance Summary -->
+    {% if attendance.days_present or attendance.days_absent %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                Current Attendance Summary
+            </h2>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">{{ attendance.days_present }}</div>
+                <div class="stat-label">Days Present</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ attendance.days_absent }}</div>
+                <div class="stat-label">Days Absent</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ attendance.attendance_rate|floatformat:1 }}%</div>
+                <div class="stat-label">Attendance Rate</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Update Attendance Form -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <div class="card-icon">
+                    <i class="fas fa-edit"></i>
+                </div>
+                Update Attendance
+            </h2>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="form-label">Days Present *</label>
+                    <input type="number" 
+                           name="days_present" 
+                           value="{{ attendance.days_present }}"
+                           min="0"
+                           class="form-control"
+                           placeholder="0"
+                           required>
+                    {% if form.days_present.errors %}
+                    <div class="alert alert-danger mt-2">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.days_present.errors }}
+                    </div>
+                    {% endif %}
+                    <p class="text-sm text-gray-500 mt-2">Number of days the student was present</p>
+                </div>
+                
+                <div>
+                    <label class="form-label">Days Absent *</label>
+                    <input type="number" 
+                           name="days_absent" 
+                           value="{{ attendance.days_absent }}"
+                           min="0"
+                           class="form-control"
+                           placeholder="0"
+                           required>
+                    {% if form.days_absent.errors %}
+                    <div class="alert alert-danger mt-2">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.days_absent.errors }}
+                    </div>
+                    {% endif %}
+                    <p class="text-sm text-gray-500 mt-2">Number of days the student was absent</p>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mb-6">
+                <i class="fas fa-lightbulb"></i>
+                <div>
+                    <p class="font-semibold">💡 Tip:</p>
+                    <p class="text-sm">Make sure the total days (Present + Absent) matches the actual school days for the term.</p>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-4">
+                <a href="{% url 'class_teacher_dashboard' %}" 
+                   class="btn btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="btn btn-success">
+                    <i class="fas fa-save me-2"></i>
+                    Update Attendance
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

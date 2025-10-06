@@ -91,7 +91,8 @@
                                 <a href="{% url 'invoice_detail' pk=invoice.pk %}" class="btn btn-sm btn-info" title="View">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'payment_create' invoice_id=invoice.pk %}" class="btn btn-sm btn-success" title="Record Payment">
+                                <!-- Fixed URL - use the correct pattern for payment_create_with_invoice -->
+                                <a href="{% url 'payment_create_for_invoice' invoice_id=invoice.pk %}" class="btn btn-sm btn-success" title="Record Payment">
                                     <i class="fas fa-money-bill-wave"></i>
                                 </a>
                             </td>

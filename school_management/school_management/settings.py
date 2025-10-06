@@ -152,3 +152,10 @@ LOGOUT_REDIRECT_URL = 'login'
 # Session settings
 SESSION_COOKIE_AGE = 3600 * 8  # 8 hours
 SESSION_SAVE_EVERY_REQUEST = True
+
+# settings.py
+PAYSTACK_PUBLIC_KEY = 'pk_test_3c0755f57e2630bb3490d2466395dfa8ec202487'
+PAYSTACK_SECRET_KEY = 'sk_test_20965b1176fc28c068dff427ad7b8c54cbfa78fa'
+PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize'
+PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify/'
+CALLBACK_URL = 'https://example.com/temporary-callback/'  # Your domain

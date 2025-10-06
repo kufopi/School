@@ -90,14 +90,15 @@ class StudentHealthRecordAdmin(admin.ModelAdmin):
     )
     
     def get_bmi_status(self, obj):
-        if obj.bmi:
-            if obj.bmi < 18.5:
+        if obj.bmi is not None:
+            bmi_value = float(obj.bmi)
+            if bmi_value < 18.5:
                 color = 'blue'
                 status = 'Underweight'
-            elif obj.bmi < 25:
+            elif bmi_value < 25:
                 color = 'green'
                 status = 'Normal'
-            elif obj.bmi < 30:
+            elif bmi_value < 30:
                 color = 'orange'
                 status = 'Overweight'
             else:

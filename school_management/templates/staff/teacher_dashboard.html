@@ -1,0 +1,99 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="card mb-4">
+        <div class="card-body">
+            <h1 class="text-gradient mb-2">Teacher Dashboard</h1>
+            <p class="text-muted mb-2">
+                <i class="fas fa-user me-2"></i>
+                Welcome, <strong>{{ teacher.user.get_full_name }}</strong>
+            </p>
+            {% if current_term %}
+            <p class="text-muted mb-0">
+                <i class="fas fa-calendar-alt me-2"></i>
+                Current Term: <span class="fw-semibold">{{ current_term }}</span>
+            </p>
+            {% else %}
+            <div class="alert alert-warning mt-3" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No active term found. Please contact the administrator.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Class Teacher Section -->
+    {% if class_teacher_assignment %}
+    <div class="card mb-4" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: none;">
+        <div class="card-body">
+            <h2 class="mb-3">
+                <i class="fas fa-check-circle text-primary me-2"></i>
+                Class Teacher Assignment
+            </h2>
+            <div class="card bg-white p-4 shadow-sm">
+                <p class="mb-3 fs-5">
+                    You are the class teacher for: 
+                    <span class="fw-bold text-primary">{{ class_teacher_assignment.class_assigned }}</span>
+                </p>
+                <a href="{% url 'class_teacher_dashboard' %}" class="btn btn-primary">
+                    <i class="fas fa-tasks me-2"></i>Manage Class Records
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Subjects Taught Section -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <span class="card-icon">
+                    <i class="fas fa-book-open"></i>
+                </span>
+                Subjects You Teach
+            </h2>
+        </div>
+        <div class="card-body">
+            {% if subjects_taught %}
+            <div class="row g-4">
+                {% for class_subject in subjects_taught %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-soft">
+                        <div class="card-body">
+                            <h5 class="card-title text-gradient mb-3">
+                                <i class="fas fa-book me-2"></i>
+                                {{ class_subject.subject.name }}
+                            </h5>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-users me-2"></i>
+                                <strong>Class:</strong> {{ class_subject.class_info }}
+                            </p>
+                            <p class="text-muted mb-3">
+                                <i class="fas fa-tag me-2"></i>
+                                <strong>Code:</strong> {{ class_subject.subject.code }}
+                            </p>
+                            <a href="{% url 'enter_subject_scores' class_subject.id %}" 
+                               class="btn btn-success w-100">
+                                <i class="fas fa-pen me-2"></i>Enter Scores
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="no-data">
+                <i class="fas fa-book-open"></i>
+                <p>No subjects assigned yet. Please contact the administrator.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Outstanding Payments Report{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <a href="{% url 'accountant_dashboard' %}" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h1 class="text-gradient mb-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Outstanding Payments Report
+            </h1>
+            
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Class</label>
+                    <select name="class_id" class="form-select">
+                        <option value="">All Classes</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}">{{ class }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-2"></i>Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="card mb-4" style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);">
+        <div class="card-body">
+            <h3 class="text-danger mb-2">
+                Total Outstanding: ₦{{ total_outstanding|floatformat:2 }}
+            </h3>
+            <p class="mb-0">From {{ invoice_data|length }} unpaid invoice(s)</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if invoice_data %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Student</th>
+                            <th>Class</th>
+                            <th>Total Amount</th>
+                            <th>Paid</th>
+                            <th>Balance</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in invoice_data %}
+                        <tr class="{% if item.is_overdue %}table-danger{% endif %}">
+                            <td>
+                                <a href="{% url 'invoice_detail' item.invoice.pk %}">
+                                    {{ item.invoice.invoice_number }}
+                                </a>
+                            </td>
+                            <td>{{ item.invoice.student.user.get_full_name }}</td>
+                            <td>{{ item.invoice.student.current_class }}</td>
+                            <td>₦{{ item.invoice.total_amount|floatformat:2 }}</td>
+                            <td class="text-success">₦{{ item.paid_amount|floatformat:2 }}</td>
+                            <td class="text-danger fw-bold">₦{{ item.balance|floatformat:2 }}</td>
+                            <td>{{ item.invoice.due_date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if item.is_overdue %}
+                                <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'record_payment_invoice' item.invoice.id %}" 
+                                   class="btn btn-sm btn-success">
+                                    <i class="fas fa-money-bill-wave me-1"></i>Pay
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td colspan="5" class="text-end">TOTAL:</td>
+                            <td class="text-danger">₦{{ total_outstanding|floatformat:2 }}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="no-data">
+                <i class="fas fa-check-circle text-success"></i>
+                <p>No outstanding payments found!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

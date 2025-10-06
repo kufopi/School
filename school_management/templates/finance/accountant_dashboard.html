@@ -1,0 +1,277 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Accountant Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="card mb-4">
+        <div class="card-body">
+            <h1 class="text-gradient mb-2">
+                <i class="fas fa-calculator me-2"></i>
+                Accountant Dashboard
+            </h1>
+            <p class="text-muted mb-0">
+                <i class="fas fa-calendar-alt me-2"></i>
+                Current Term: <strong>{{ current_term }}</strong>
+            </p>
+        </div>
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-white h-100" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title text-white">Total Invoiced</h6>
+                        <i class="fas fa-file-invoice fa-2x opacity-50"></i>
+                    </div>
+                    <h2 class="mb-0">₦{{ total_invoiced|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-white h-100" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title text-white">Total Collected</h6>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                    <h2 class="mb-0">₦{{ total_collected|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-white h-100" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title text-white">Outstanding</h6>
+                        <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                    </div>
+                    <h2 class="mb-0">₦{{ total_outstanding|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card text-white h-100" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title text-white">Unpaid Invoices</h6>
+                        <i class="fas fa-hourglass-half fa-2x opacity-50"></i>
+                    </div>
+                    <h2 class="mb-0">{{ unpaid_count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-bolt me-2"></i>
+                Quick Actions
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="{% url 'search_student_invoice' %}" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>Search Student
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'record_payment' %}" class="btn btn-success w-100">
+                        <i class="fas fa-money-bill-wave me-2"></i>Record Payment
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'invoice_list' %}" class="btn btn-info w-100 text-white">
+                        <i class="fas fa-list me-2"></i>View Invoices
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'outstanding_report' %}" class="btn btn-warning w-100">
+                        <i class="fas fa-chart-bar me-2"></i>Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- This Month Collections -->
+    <div class="card mb-4" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <i class="fas fa-calendar-check me-2"></i>
+                This Month's Collections
+            </h5>
+            <h3 class="text-primary mb-0">₦{{ monthly_payments|floatformat:2 }}</h3>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Overdue Invoices -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                        Overdue Invoices
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if overdue_invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Student</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in overdue_invoices %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'invoice_detail' invoice.pk %}">
+                                            {{ invoice.invoice_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ invoice.student.user.get_full_name }}</td>
+                                    <td class="text-danger fw-bold">₦{{ invoice.total_amount|floatformat:2 }}</td>
+                                    <td><small>{{ invoice.due_date|date:"M d, Y" }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'outstanding_report' %}" class="btn btn-sm btn-outline-danger">
+                            View All Overdue
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="no-data py-4">
+                        <i class="fas fa-check-circle text-success"></i>
+                        <p>No overdue invoices</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Payments -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history text-success me-2"></i>
+                        Recent Payments
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_payments %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Student</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in recent_payments %}
+                                <tr>
+                                    <td><small>{{ payment.payment_date|date:"M d" }}</small></td>
+                                    <td>{{ payment.invoice.student.user.get_full_name|truncatewords:2 }}</td>
+                                    <td class="text-success fw-bold">₦{{ payment.amount|floatformat:2 }}</td>
+                                    <td><span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'payment_history' %}" class="btn btn-sm btn-outline-success">
+                            View All Payments
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="no-data py-4">
+                        <i class="fas fa-inbox"></i>
+                        <p>No recent payments</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class-wise Summary -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-pie me-2"></i>
+                Class-wise Collection Summary
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if class_summary %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Class</th>
+                            <th>Students</th>
+                            <th>Total Invoiced</th>
+                            <th>Collected</th>
+                            <th>Outstanding</th>
+                            <th>Collection %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in class_summary %}
+                        <tr>
+                            <td class="fw-semibold">{{ item.class }}</td>
+                            <td>{{ item.student_count }}</td>
+                            <td>₦{{ item.total_invoiced|floatformat:2 }}</td>
+                            <td class="text-success">₦{{ item.total_collected|floatformat:2 }}</td>
+                            <td class="text-danger">₦{{ item.outstanding|floatformat:2 }}</td>
+                            <td>
+                                {% if item.total_invoiced > 0 %}
+                                {% widthratio item.total_collected 1 item.total_invoiced as percentage %}
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ percentage }}%;" 
+                                         aria-valuenow="{{ percentage }}" 
+                                         aria-valuemin="0" aria-valuemax="100">
+                                        {{ percentage }}%
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="no-data">
+                <i class="fas fa-chart-bar"></i>
+                <p>No class data available</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

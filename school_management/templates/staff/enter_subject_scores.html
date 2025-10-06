@@ -1,0 +1,118 @@
+{% extends 'core/base.html' %}
+
+{% load staff_extras %}
+
+
+
+{% block title %}Enter Scores - {{ class_subject.subject.name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <a href="{% url 'teacher_dashboard' %}" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h1 class="text-gradient mb-2">Enter Subject Scores</h1>
+            <p class="mb-1"><strong>Subject:</strong> {{ class_subject.subject.name }} ({{ class_subject.subject.code }})</p>
+            <p class="mb-1"><strong>Class:</strong> {{ class_subject.class_info }}</p>
+            <p class="mb-0"><strong>Term:</strong> {{ current_term }}</p>
+        </div>
+    </div>
+
+    <!-- Exam Type Selection -->
+    <div class="card mb-4" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
+        <div class="card-body">
+            <h5 class="mb-3">Select Exam Type</h5>
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label">Exam Type</label>
+                    <select name="exam_type" class="form-select" required>
+                        <option value="">-- Select Exam Type --</option>
+                        {% for exam_type in exam_types %}
+                        <option value="{{ exam_type.id }}" {% if selected_exam_type_id == exam_type.id|stringformat:"s" %}selected{% endif %}>
+                            {{ exam_type.name }} (Max: {{ exam_type.max_score }}, Weight: {{ exam_type.weight }}%)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-sync-alt me-2"></i>Load Scores
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Score Entry Form -->
+    {% if selected_exam_type_id %}
+    <div class="card">
+        <div class="card-body">
+            <h5 class="mb-3">Enter Scores for Students</h5>
+            
+            {% if students %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="exam_type" value="{{ selected_exam_type_id }}">
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th width="5%">S/N</th>
+                                <th width="15%">Student ID</th>
+                                <th width="50%">Student Name</th>
+                                <th width="30%">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in students_with_scores %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ item.student.student_id }}</td>
+                                <td class="fw-semibold">{{ item.student.user.get_full_name }}</td>
+                                <td>
+                                    <input type="number" 
+                                           name="score_{{ item.student.id }}" 
+                                           value="{{ item.existing_score }}"
+                                           step="0.5"
+                                           min="0"
+                                           class="form-control form-control-sm"
+                                           style="max-width: 150px;"
+                                           placeholder="0.0">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{% url 'teacher_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-2"></i>Save Scores
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <div class="no-data">
+                <i class="fas fa-users-slash"></i>
+                <p>No students found in this class.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-arrow-up text-muted" style="font-size: 48px; opacity: 0.3;"></i>
+            <p class="text-muted mt-3 mb-0">Please select an exam type above to load student scores</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

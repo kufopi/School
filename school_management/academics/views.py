@@ -1,6 +1,6 @@
 from django.views.generic import ListView, CreateView, DetailView
 from django.urls import reverse_lazy
-from .models import Subject, Class, Result, TermReport , ReportComment
+from .models import Subject, Class, Result, TermReport , ReportComment, SubjectGrade
 from .forms import SubjectForm, ResultForm, ReportCommentForm
 from django.shortcuts import get_object_or_404
 
@@ -21,6 +21,7 @@ class ResultEntryView(CreateView):
     
     def get_success_url(self):
         return reverse_lazy('term_report', kwargs={'pk': self.object.student.pk})
+    
 
 class TermReportView(DetailView):
     model = TermReport
@@ -28,10 +29,7 @@ class TermReportView(DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['results'] = Result.objects.filter(
-            student=self.object.student,
-            term=self.object.term
-        )
+        context['subject_results'] = self.object.get_subject_results()
         return context
 
 class ReportCommentView(CreateView):

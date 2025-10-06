@@ -49,7 +49,7 @@ class BehaviorAssessmentForm(forms.ModelForm):
 class ResultForm(forms.ModelForm):
     class Meta:
         model = Result
-        fields = ['subject', 'score', 'exam_type']
+        fields = ['score', 'exam_type']
         
 class AttendanceForm(forms.ModelForm):
     class Meta:

@@ -89,11 +89,11 @@ class FeeStructureAdmin(admin.ModelAdmin):
     )
     
     def get_total_amount(self, obj):
-        return f"₦{obj.total_amount:,.2f}"
+        return "₦{:,.2f}".format(float(obj.total_amount))
     get_total_amount.short_description = 'Total Amount'
     
     def get_total_amount_display(self, obj):
-        return f"₦{obj.total_amount:,.2f}"
+        return "₦{:,.2f}".format(float(obj.total_amount))
     get_total_amount_display.short_description = 'Total Amount'
     
     def get_items_count(self, obj):
@@ -135,7 +135,7 @@ class PaymentInline(admin.TabularInline):
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ['invoice_number', 'student', 'get_total_amount', 'get_paid_amount', 'get_balance', 'get_payment_status', 'issue_date', 'due_date']
+    list_display = ['invoice_number', 'student', 'get_total_amount_display', 'get_paid_amount_display', 'get_balance_display', 'get_payment_status', 'issue_date', 'due_date']
     list_filter = ['is_paid', 'issue_date', 'due_date', 'fee_structure__class_level']
     search_fields = ['invoice_number', 'student__user__first_name', 'student__user__last_name', 'student__student_id']
     readonly_fields = ['issue_date', 'get_total_amount_display', 'get_paid_amount_display', 'get_balance_display']
@@ -160,40 +160,46 @@ class InvoiceAdmin(admin.ModelAdmin):
     )
     
     def get_total_amount(self, obj):
-        return f"₦{obj.total_amount:,.2f}"
+        """Return raw Decimal value for sorting/filtering."""
+        return obj.total_amount
     get_total_amount.short_description = 'Total'
     
     def get_total_amount_display(self, obj):
-        return f"₦{obj.total_amount:,.2f}"
+        """Return formatted string for display."""
+        return "₦{:,.2f}".format(float(obj.total_amount))
     get_total_amount_display.short_description = 'Invoice Total'
     
     def get_paid_amount(self, obj):
-        paid = obj.payment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        return f"₦{paid:,.2f}"
+        """Return raw Decimal value for sorting/filtering."""
+        return obj.payment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     get_paid_amount.short_description = 'Paid'
     
     def get_paid_amount_display(self, obj):
+        """Return formatted string for display."""
         paid = obj.payment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        return f"₦{paid:,.2f}"
+        return "₦{:,.2f}".format(float(paid))
     get_paid_amount_display.short_description = 'Amount Paid'
     
     def get_balance(self, obj):
+        """Return raw Decimal value for sorting/filtering."""
         paid = obj.payment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        balance = obj.total_amount - paid
-        color = 'green' if balance <= 0 else 'red'
-        return format_html(
-            '<span style="color: {}; font-weight: bold;">₦{:,.2f}</span>',
-            color, balance
-        )
+        return obj.total_amount - paid
     get_balance.short_description = 'Balance'
     
     def get_balance_display(self, obj):
+        """Return formatted HTML string for display."""
         paid = obj.payment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         balance = obj.total_amount - paid
-        return f"₦{balance:,.2f}"
+        color = 'green' if balance <= 0 else 'red'
+        formatted_balance = "{:,.2f}".format(float(balance))
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">₦{}</span>',
+            color, formatted_balance
+        )
     get_balance_display.short_description = 'Outstanding Balance'
     
     def get_payment_status(self, obj):
+        """Return formatted HTML string for payment status."""
         paid = obj.payment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         balance = obj.total_amount - paid
         
@@ -212,7 +218,6 @@ class InvoiceAdmin(admin.ModelAdmin):
             color, status
         )
     get_payment_status.short_description = 'Payment Status'
-
 
 @admin.register(InvoiceLineItem)
 class InvoiceLineItemAdmin(admin.ModelAdmin):
