@@ -159,3 +159,12 @@ PAYSTACK_SECRET_KEY = 'sk_test_20965b1176fc28c068dff427ad7b8c54cbfa78fa'
 PAYSTACK_INITIALIZE_URL = 'https://api.paystack.co/transaction/initialize'
 PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify/'
 CALLBACK_URL = 'https://example.com/temporary-callback/'  # Your domain
+
+import dj_database_url
+DATABASES = {
+    'default': dj_database_url.config(
+        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+}
